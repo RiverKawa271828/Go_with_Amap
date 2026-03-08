@@ -20,7 +20,17 @@ Go with Amap - 基于高德地图的 Android 虚拟定位工具
 - **项目地址**: https://github.com/RiverKawa271828/Go_with_Amap
 - **开源协议**: GPL-3.0-only
 
-本项目灵感来源于 **[影梭 (GoGoGo)](https://github.com/ZCShou/GoGoGo)** by ZCShou，感谢原作者的开源贡献！
+### 关于本项目
+
+本项目是基于 **[影梭 (GoGoGo)](https://github.com/ZCShou/GoGoGo)** by ZCShou 的**二次开发项目**，感谢原作者的开源贡献！
+
+**重要说明**：
+- 本项目完全基于**个人需求**进行更改和增强
+- 与原项目相比进行了大量架构级改动（地图 SDK 更换、系统要求提升、新增功能等）
+- 由于改动幅度巨大，本项目作为**独立衍生项目**维护，不与原仓库保持同步
+- 所有更改均遵循 GPL-3.0 开源协议，完整代码开源
+
+如果您需要原项目的稳定版本，请访问 [GoGoGo 官方仓库](https://github.com/ZCShou/GoGoGo)。
 
 ## 主要修改内容
 
