@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ============================================ -->
+    <!-- Material Design 3 深色主题色系统 -->
+    <!-- ============================================ -->
+    
+    <!-- 主要品牌色 (Primary) - 活力绿 -->
+    <color name="md_primary_dark">#6CDBAC</color>
+    <color name="md_onPrimary_dark">#003826</color>
+    <color name="md_primaryContainer_dark">#005138</color>
+    <color name="md_onPrimaryContainer_dark">#89F8C7</color>
+    
+    <!-- 次要品牌色 (Secondary) - 柔和青绿 -->
+    <color name="md_secondary_dark">#B3CCBE</color>
+    <color name="md_onSecondary_dark">#1F352A</color>
+    <color name="md_secondaryContainer_dark">#354B40</color>
+    <color name="md_onSecondaryContainer_dark">#CFE9D9</color>
+    
+    <!-- 第三品牌色 (Tertiary) - 优雅紫 -->
+    <color name="md_tertiary_dark">#A5CCDF</color>
+    <color name="md_onTertiary_dark">#063544</color>
+    <color name="md_tertiaryContainer_dark">#244D5B</color>
+    <color name="md_onTertiaryContainer_dark">#C1E8FB</color>
+    
+    <!-- 错误色 (Error) -->
+    <color name="md_error_dark">#FFB4AB</color>
+    <color name="md_onError_dark">#690005</color>
+    <color name="md_errorContainer_dark">#93000A</color>
+    <color name="md_onErrorContainer_dark">#FFDAD6</color>
+    
+    <!-- 表面色 (Surface) - 深色主题 -->
+    <color name="md_surface_dark">#0D1F16</color>
+    <color name="md_onSurface_dark">#E1E3DF</color>
+    <color name="md_surfaceVariant_dark">#1A3328</color>
+    <color name="md_onSurfaceVariant_dark">#8A9A8E</color>
+    
+    <!-- 背景色 (Background) - 深黑绿色 -->
+    <color name="md_background_dark">#0A1812</color>
+    <color name="md_onBackground_dark">#E1E3DF</color>
+    
+    <!-- 深黑绿色（用于顶栏） -->
+    <color name="md_surfaceDarkGreen">#0D1F16</color>
+    <color name="md_surfaceDarkGreenDark">#0A1812</color>
+    
+    <!-- 轮廓色 (Outline) -->
+    <color name="md_outline_dark">#89938D</color>
+    <color name="md_outlineVariant_dark">#404943</color>
+    
+    <!-- 表面容器色 - 深色主题 -->
+    <color name="md_surfaceContainerLowest_dark">#0D0F0E</color>
+    <color name="md_surfaceContainerLow_dark">#191C1A</color>
+    <color name="md_surfaceContainer_dark">#1D201E</color>
+    <color name="md_surfaceContainerHigh_dark">#272B28</color>
+    <color name="md_surfaceContainerHighest_dark">#323633</color>
+    
+    <!-- 强调色 - 深色主题 -->
+    <color name="md_success_dark">#81C784</color>
+    <color name="md_successContainer_dark">#1B5E20</color>
+    <color name="md_warning_dark">#FFB74D</color>
+    <color name="md_warningContainer_dark">#E65100</color>
+    <color name="md_info_dark">#64B5F6</color>
+    <color name="md_infoContainer_dark">#0D47A1</color>
+    
+    <!-- 兼容性颜色定义 - 深色主题 -->
+    <color name="backgroundLight">#0A1812</color>
+    <color name="backgroundCard">#0D0F0E</color>
+    <color name="textPrimary">#E1E3DF</color>
+    <color name="textSecondary">#8A9A8E</color>
+    <color name="textTertiary">#5A6A60</color>
+    
+</resources>

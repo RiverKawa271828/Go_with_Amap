@@ -4,104 +4,402 @@
 
 <div align="center">
 
-[![GitHub stars](https://img.shields.io/github/stars/ZCShou/GoGoGo?logo=github)](https://github.com/ZCShou/GoGoGo/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/ZCShou/GoGoGo?logo=github)](https://github.com/ZCShou/GoGoGo/network)
-[![license](https://img.shields.io/github/license/ZCShou/GoGoGo)](https://github.com/ZCShou/GoGoGo/blob/master/LICENSE)
-[![GitHub Release](https://img.shields.io/github/v/release/ZCShou/GoGoGo?label=Release)](https://github.com/ZCShou/GoGoGo/releases)
-[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
-</div>
-<div align="center">
+[![license](https://img.shields.io/github/license/RiverKawa271828/Go_with_Amap)](https://github.com/RiverKawa271828/Go_with_Amap/blob/master/LICENSE)
 
-[![Build Check](https://github.com/ZCShou/GoGoGo/actions/workflows/build-check.yml/badge.svg)](https://github.com/ZCShou/GoGoGo/actions/workflows/build-check.yml)
-[![CodeQL](https://github.com/ZCShou/GoGoGo/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/ZCShou/GoGoGo/actions/workflows/codeql-analysis.yml)
 </div>
 
 <div align="center">
-影梭 - 用于 Android 8.0+ 的无需 ROOT 权限的虚拟定位 APP
+Go with Amap - 基于高德地图的 Android 虚拟定位工具
 </div>
+
+## 项目声明
+
+**Go with Amap** 是一个基于 Android 调试 API + 高德地图 SDK 实现的安卓虚拟定位工具。
+
+- **作者**: River
+- **项目地址**: https://github.com/RiverKawa271828/Go_with_Amap
+- **开源协议**: GPL-3.0-only
+
+本项目灵感来源于 **[影梭 (GoGoGo)](https://github.com/ZCShou/GoGoGo)** by ZCShou，感谢原作者的开源贡献！
+
+## 主要修改内容
+
+与原项目相比，本项目进行了以下修改和增强：
+
+### 1. 地图 SDK 更换
+- **原项目**: 百度地图 SDK
+- **本项目**: 高德地图 SDK (Amap 3D SDK 9.8.2)
+- 坐标系从 BD09 改为 GCJ02
+
+### 2. 系统要求提升
+- **原项目**: Android 8.0+ (API 26)
+- **本项目**: Android 12+ (API 31)
+- 支持 Android 14 (API 34)
+
+### 3. 新增功能
+
+#### ROOT 模式支持 (ROOT Mode)
+- 新增 ROOT 模式选项，支持在已 ROOT 设备上使用
+- 绕过部分应用的模拟位置检测
+- 位置数据持久化，服务重启后自动恢复
+- 自动检测 ROOT 状态并提示用户
+
+#### 多点定位 (Multi-Point Positioning)
+- 支持从历史记录或收藏中选择多个坐标点
+- 以每个点为中心绘制圆形区域（可设置半径，单位：千米）
+- 使用几何算法自动计算多个圆的相交区域
+- 支持三边测量计算最佳目标点
+- 可视化显示圆和相交区域
+
+#### 收藏功能 (Favorites)
+- 长按地图位置可添加到收藏
+- 收藏列表管理（查看、删除）
+- 支持从收藏快速定位到地图
+
+#### 增强的悬浮窗摇杆
+- 内置迷你地图（悬浮窗内可直接搜索和选点）
+- 内置历史记录列表
+- 支持方向键和摇杆两种控制方式切换
+
+### 4. 架构变更
+- **架构**: 仅支持 arm64-v8a（原项目支持更多架构）
+- **包名**: `com.river.gowithamap`（原项目: `com.zcshou.gogogo`）
+- **应用名**: Go with Amap（原项目: 影梭）
+
+### 5. 依赖升级
+- Gradle: 9.1.0
+- Android SDK: 34
+- 高德地图 SDK: 9.8.2
+- OkHttp: 4.12.0
+- 新增 XLog、Markwon 等库
+
+### 6. UI/UX 改进
+- 全新的导航抽屉菜单
+- 添加欢迎页和用户协议
+- 改进的设置界面
+- 新的图标和主题色
 
 ## 简介
-&emsp;&emsp;影梭是一个基于 Android 调试 API + 百度地图及定位 SDK 实现的安卓定位修改工具，并且同时实现了一个可以自由控制移动的摇杆。使用影梭，不需要 ROOT 权限就可以随意修改自己的当前位置以及模拟移动。
 
-1. 源码仓库：[Github](https://github.com/ZCShou/GoGoGo)（推荐）、[Gitee](https://gitee.com/itexp/gogogo)（镜像）
-2. 下载地址：[Github](https://github.com/ZCShou/GoGoGo/releases)（推荐）、[Gitee](https://gitee.com/itexp/gogogo/releases)（镜像）
+Go with Amap 是一个基于 Android 调试 API + 高德地图 SDK 实现的安卓虚拟定位工具，支持摇杆控制移动。无需 ROOT 权限即可修改当前位置并模拟移动。
 
-## 警告一
-&emsp;&emsp;**最近，有网友直接白嫖影梭后改名为标枪定位，然后添加广告（除了加广告，功能没有任何改变），但是，没有按照 GPLv3 协议的要求进行开源（我已经联系过该网友进了提醒，但并没有收到回复），在此提醒：**
-1. **开源 ≠ 白嫖，请遵循开源协议**
-2. **GPL 的法律效力在国内相关诉讼案例很多，请自行搜索，权衡利弊。影梭保留追究相关侵权人员法律责任的所有权利！**
-3. **开源不易，且行且珍惜**
+本项目仅供学习 Android 开发和地图 SDK 使用。
 
-## 警告二
-&emsp;&emsp;**最近，有很多人将影梭用在校园运动类 APP（包括但不限于闪动校园、TakeTwo、运动世界校园等）中作弊，开发者也收到了很多人提问为何影梭定位并不起作用或者寻求对影梭的改进，在此提醒：**
-1. **影梭不支持任何校园运动类 APP 的作弊行为**
-2. **影梭开发者也不赞同采用任何形式在校园运动中作弊**
+## 功能特性
 
-## 背景
-&emsp;&emsp;之前在玩一款 VR 游戏：一起来捉妖。为了省事，就想有没有可以更改位置的 APP。经过一番摸索发现确实有不少可以修改位置的 APP。但是，绝大多数这种 APP 都是收费的，而且贼贵！
+### 核心功能
+1. **虚拟定位** - 点击地图或输入坐标选择目标位置
+2. **摇杆控制** - 悬浮窗摇杆，支持步行/跑步/自行车三种速度
+3. **位置搜索** - 集成高德地图 POI 搜索
+4. **历史记录** - 自动保存定位历史，支持快速回放
 
-&emsp;&emsp;我比较感兴趣的是这样的技术是如何实现的，因此，决定研究研究自己写一个！现在游戏已经弃坑了，但是技术不能丢。因此，将研究结果开源出来方便大家一起学习！但是请注意（重要的事情说三遍！否则后果自负）：
+### 新增功能
+5. **ROOT 模式** - 支持 ROOT 设备，增强兼容性
+6. **多点定位** - 多圆相交计算目标位置
+7. **收藏管理** - 位置收藏和快速访问
+8. **悬浮窗地图** - 无需返回主界面即可切换位置
+9. **地图切换** - 普通地图/卫星地图
 
-1. 该 APP 仅仅是为了学习 Android + 百度地图的实现方法，请勿用于游戏作弊！
-2. 该 APP 仅仅是为了学习 Android + 百度地图的实现方法，请勿用于游戏作弊！
-3. 该 APP 仅仅是为了学习 Android + 百度地图的实现方法，请勿用于游戏作弊！
+## 技术栈
 
-## 功能
-1. 定位修改
-2. 摇杆控制移动
-3. 历史记录
-4. 位置搜索
-5. 直接输入坐标
+| 项目 | 版本 |
+|------|------|
+| 开发语言 | Java |
+| 最低 SDK | Android 12 (API 31) |
+| 目标 SDK | Android 14 (API 34) |
+| 地图 SDK | 高德地图 3D SDK 9.8.2 |
+| 搜索 SDK | 高德地图搜索 SDK 9.7.0 |
+| 构建工具 | Gradle 9.3.1 |
+| 支持架构 | arm64-v8a |
+| ROOT 支持 | 可选（增强模式）|
 
-## 截图
-![joystick.jpg](./docs/images/joystick.jpg)
-![search_history.jpg](./docs/images/search_history.jpg)
-![map.jpg](./docs/images/map.jpg)
+## 核心依赖
 
-## 用法
-1. 下载 APK 直接安装
-2. 启动影梭，赋予相关权限
-3. 单击地图位置，然后点击启动按钮
+```gradle
+// AndroidX
+implementation 'androidx.appcompat:appcompat:1.6.1'
+implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2'
+implementation 'com.google.android.material:material:1.11.0'
 
-## 文档
-&emsp;&emsp;由于本人并不是做移动开发的，很多功能代码写的都比较差。我也第一次写  Android APP，目前还处在学习中。。。此外，就一个简单的 APP，应该也不需要啥文档，开发过程中遇到的一些问题，我一般都会记录在个人博客中，具体参见：https://blog.csdn.net/zcshoucsdn/category_10559121.html
+// 高德地图
+implementation 'com.amap.api:3dmap:9.8.2'
+implementation 'com.amap.api:search:9.7.0'
 
-&emsp;&emsp;如果有疑问可以直接搜索 ISSUE 或者 在上面直接提交问题。
+// 网络与工具
+implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+implementation 'com.elvishew:xlog:1.11.1'
+implementation 'io.noties.markwon:core:4.6.2'
 
-## 参考
-&emsp;&emsp;由于本人也是个新手，纯属业余瞎搞，因此，在写影梭的过程中，参考了很多网友分享的技术文章、示例代码等。包括但不限于以下列出的几个：
-1. https://github.com/Hilaver/MockGPS
-2. https://github.com/bxxfighting/together-go
-3. https://github.com/P72B/Mocklation
+// UI
+implementation 'androidx.cardview:cardview:1.0.0'
+```
 
-&emsp;&emsp;还有些 CSDN 上的文章，目前不记得地址了，如果您发现其中有直接引用或借鉴您的地方，请与我联系，我会再第一时间进行处理，谢谢！
+## 项目结构
 
-## FAQ
-Q：为何不支持 Android 8.0 以下版本？
+```
+app/src/main/java/com/river/gowithamap/
+├── MainActivity.java              # 主界面（新增多点定位、收藏功能）
+├── WelcomeActivity.java           # 欢迎页（新增）
+├── SettingsActivity.java          # 设置页
+├── HistoryActivity.java           # 历史记录页
+├── FavoritesActivity.java         # 收藏页（新增）
+├── GoApplication.java             # 应用入口
+├── BaseActivity.java              # 基类
+├── service/
+│   ├── ServiceGo.java             # 定位模拟服务（新增 ROOT 模式）
+│   └── RootLocationProvider.java  # ROOT 模式位置提供者（新增）
+├── joystick/
+│   ├── JoyStick.java              # 悬浮窗摇杆（增强版）
+│   ├── RockerView.java            # 摇杆视图
+│   └── ButtonView.java            # 方向键视图
+├── database/
+│   ├── DataBaseHistoryLocation.java   # 定位历史数据库
+│   ├── DataBaseHistorySearch.java     # 搜索历史数据库
+│   └── DataBaseFavorites.java         # 收藏数据库（新增）
+└── utils/
+    ├── GoUtils.java               # 通用工具
+    ├── MapUtils.java              # 地图坐标转换工具（GCJ02/WGS84）
+    ├── RootUtils.java             # ROOT 检测与命令执行工具（新增）
+    └── ShareUtils.java            # 分享工具
+```
 
-A：因为手里没有机器无法进行适配。。。
+## 核心功能实现
 
-Q：为何定位不是很稳定，偶尔会飘回真实位置？
+### 位置模拟原理
 
-A：这是是由于实现原理导致的，Android 调试 API 固有的问题。确切的说，应该是由于手机本身还开启了其他定位方式（例如，基站定位、wifi定位等）导致的
+使用 Android 的 `LocationManager.addTestProvider()` API：
 
-Q：是否支持鸿蒙系统？
+```java
+// 添加 GPS 测试提供者
+mLocManager.addTestProvider(LocationManager.GPS_PROVIDER, ...);
+mLocManager.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true);
 
-A：经过测试，影梭可以在鸿蒙系统上正常运行。
+// 设置模拟位置
+Location loc = new Location(LocationManager.GPS_PROVIDER);
+loc.setLatitude(latitude);
+loc.setLongitude(longitude);
+mLocManager.setTestProviderLocation(LocationManager.GPS_PROVIDER, loc);
+```
 
-Q：为何在微信等腾讯系应用上定位不起作用？
+### 坐标系转换
 
-A：建议去问一下腾讯。
+支持 WGS84 和 GCJ02 之间的相互转换：
 
-Q：编译时 java 报错？
+```java
+// GCJ02 转 WGS84
+double[] wgs84 = MapUtils.gcj02ToWgs84(gcjLon, gcjLat);
 
-A：Gradle 使用的 java 版本与 Android Studio 使用的不一致。Gradle 默认会在环境变量中搜索 JAVA_HOME 来确定 Java 位置。
+// WGS84 转 GCJ02  
+double[] gcj02 = MapUtils.wgs84ToGcj02(wgsLon, wgsLat);
+```
 
-## 如何贡献
-1. FORK -> PR
-2. 加入影梭开发，共同完善
+### 多点定位算法（新增）
 
-## 许可证
-GPL-3.0-only © ZCShou
+1. **两圆相交计算**：使用平面几何计算两个圆的相交点
+2. **最优目标点**：在所有相交点中找到使得到各圆周距离最小的点
+3. **梯度下降优化**：使用迭代优化算法精确调整目标点位置
 
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FZCShou%2FGoGoGo.svg?type=large&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FZCShou%2FGoGoGo?ref=badge_large&issueType=license)
+```java
+// 计算两圆相交点
+List<LatLng> intersections = calculateTwoCircleIntersections(c1, r1, c2, r2);
+
+// 找到最佳目标点
+LatLng bestPoint = findBestIntersectionPoint(allIntersections);
+```
+
+## 使用要求
+
+### 必要条件
+
+1. **Android 12+** (API 31)
+2. **开启开发者选项**
+3. **设置模拟位置应用**：在开发者选项中选择本应用作为模拟位置应用（普通模式）
+4. **悬浮窗权限**：用于显示摇杆控制
+
+### ROOT 模式（可选）
+
+如需使用 ROOT 模式增强兼容性：
+1. 设备需要已 ROOT
+2. 在设置中启用"ROOT 模式"
+3. 授予 ROOT 权限（会弹出 Superuser 授权对话框）
+4. 重启应用以应用更改
+
+**注意**：ROOT 模式可绕过部分应用的模拟位置检测，但需要设备已 ROOT。
+
+### 权限列表
+
+- `ACCESS_FINE_LOCATION` - 精确位置
+- `ACCESS_COARSE_LOCATION` - 粗略位置
+- `ACCESS_BACKGROUND_LOCATION` - 后台位置（Android 10+）
+- `SYSTEM_ALERT_WINDOW` - 悬浮窗
+- `ACCESS_MOCK_LOCATION` - 模拟位置
+- `FOREGROUND_SERVICE_LOCATION` - 前台服务位置
+
+## 构建说明
+
+### 配置高德地图 API Key
+
+在 `local.properties` 文件中添加：
+
+```properties
+AMAP_API_KEY=你的高德地图API密钥
+```
+
+### 构建 APK
+
+```bash
+# 清理并构建调试版本
+./gradlew clean assembleDebug
+
+# 构建发布版本
+./gradlew assembleRelease
+
+# 安装到设备
+./gradlew installDebug
+```
+
+### 输出文件
+
+- 调试版：`app/build/outputs/apk/debug/GoWithAmap_{version}_arm64-v8a_debug.apk`
+- 发布版：`app/build/outputs/apk/release/GoWithAmap_{version}_arm64-v8a_release.apk`
+
+## 使用步骤
+
+### 普通模式
+
+1. 安装 APK 并打开应用
+2. 阅读并同意用户协议
+3. 授予必要的权限（位置、悬浮窗等）
+4. 在系统设置中开启开发者选项
+5. 设置本应用为模拟位置应用：
+   - 设置 → 系统 → 开发者选项 → 选择模拟位置信息应用
+   - 选择 "Go with Amap"
+6. 返回应用，在地图上点击选择目标位置
+7. 点击启动按钮开始模拟定位
+8. 显示悬浮窗摇杆后，可以控制移动
+
+### ROOT 模式（可选增强）
+
+1. 确保设备已 ROOT
+2. 打开应用，进入"设置"
+3. 开启"ROOT 模式"
+4. 授权 ROOT 权限
+5. 重启应用
+6. 正常使用虚拟定位功能
+
+## 多点定位使用说明
+
+1. 点击导航菜单中的"多点定位"
+2. 选择"历史"或"收藏"标签
+3. 点击选择一个坐标点
+4. 输入半径（单位：千米）
+5. 点击"确定"添加圆
+6. 重复步骤 3-5 添加至少 3 个圆
+7. 选择"完成"计算相交区域
+8. 系统会自动找到最佳目标点
+
+## ROOT 模式使用说明
+
+### 什么是 ROOT 模式
+
+ROOT 模式是一种增强型的位置模拟方案，通过 ROOT 权限直接操作系统位置服务，相比普通模式具有以下优势：
+- 位置更新更稳定
+- 可绕过部分应用的模拟位置检测
+- 服务重启后自动恢复上次位置
+
+### 启用 ROOT 模式
+
+1. **前提条件**
+   - 设备已 ROOT（Magisk、SuperSU 等）
+   - 已安装 Superuser 管理应用
+
+2. **启用步骤**
+   - 打开应用，进入"设置"
+   - 找到"ROOT 模式"选项
+   - 开启"启用 ROOT 模式"开关
+   - 系统会弹出 ROOT 授权请求，点击"允许"
+   - 阅读警告信息后点击"确定"
+   - 重启应用以应用更改
+
+3. **验证 ROOT 模式**
+   - 查看设置中的"ROOT 状态"是否显示"已获取 ROOT 权限"
+   - 启动虚拟定位后，位置图标会显示 ROOT 模式指示
+
+### 注意事项
+
+- ROOT 模式需要设备已 ROOT，未 ROOT 设备无法使用
+- 部分设备可能需要额外的 SELinux 配置
+- 使用 ROOT 模式产生的任何问题由用户自行承担
+- 某些应用仍可能通过其他方式检测位置异常
+
+## 注意事项
+
+⚠️ **仅供学习 Android 开发和地图 SDK 使用**
+
+1. 请勿用于任何违法用途
+2. 请勿用于游戏作弊
+3. 请勿用于侵犯他人隐私
+4. 使用本软件产生的一切后果由用户自行承担
+
+##  
+
+本软件专为学习 Android 开发使用：
+- 不会收集任何用户数据
+- 所有数据均存储在本地
+- 开发者不对使用本软件产生的任何后果负责
+
+## 开源协议
+
+GPL-3.0-only
+
+## 致谢
+
+### 原项目
+- **影梭 (GoGoGo)** by [ZCShou](https://github.com/ZCShou)
+- 项目地址: https://github.com/ZCShou/GoGoGo
+
+### 使用的开源库
+- 高德地图 SDK
+- Android Jetpack
+- OkHttp
+- XLog
+- Markwon
+
+## 更新日志
+
+### v2.17.4 (当前版本)
+- 新增 ROOT 模式支持（可选）
+- 修复摇杆历史按钮闪退问题
+- 修复服务重启后位置丢失问题
+- 优化位置数据持久化存储
+- 改进设置界面，添加 ROOT 状态检测
+- 优化历史记录列表显示
+- 更新 Gradle 至 9.3.1
+- 更新依赖库版本
+
+### v2.17.3
+- 修复 Material Dialog 兼容性问题
+- 优化摇杆历史记录显示
+
+### v2.17.2
+- 优化地图缓存管理
+- 改进夜间模式切换
+
+### v2.17.1
+- 修复收藏功能相关问题
+- 优化多点定位算法
+
+### v2.17.0
+- 更换地图 SDK：百度地图 → 高德地图
+- 新增多点定位功能
+- 新增收藏功能
+- 新增悬浮窗地图
+- 优化摇杆控制
+- 适配 Android 14
+- 最低系统要求提升至 Android 12
+
+---
+
+**作者**: River  
+**项目地址**: https://github.com/RiverKawa271828/Go_with_Amap  
+**仅供学习使用，否则后果自负！**

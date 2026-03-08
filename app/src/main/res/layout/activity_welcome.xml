@@ -4,10 +4,13 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <ImageView
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:srcCompat="@drawable/welcome"
+        android:text="🐱"
+        android:textSize="240sp"
+        android:gravity="center"
+        android:background="@color/backgroundLight"
         android:contentDescription="@null" />
 
     <Button

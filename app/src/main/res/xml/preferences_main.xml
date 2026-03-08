@@ -70,6 +70,25 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        app:title="@string/setting_group_root"
+        app:iconSpaceReserved="false">
+
+        <SwitchPreferenceCompat
+            app:key="use_root_mode"
+            app:title="@string/setting_root_mode"
+            app:summary="@string/setting_root_mode_summary"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false"/>
+
+        <Preference
+            app:key="setting_root_status"
+            app:title="@string/setting_root_status"
+            app:summary="@string/setting_root_status_unknown"
+            app:iconSpaceReserved="false"
+            app:enabled="false"/>
+    </PreferenceCategory>
+
+    <PreferenceCategory
         app:title="@string/setting_group_log"
         app:iconSpaceReserved="false">
 
@@ -83,6 +102,38 @@
             app:title="@string/setting_history_expiration"
             app:defaultValue="@string/history_expiration"
             app:summary="@string/history_expiration"
+            app:iconSpaceReserved="false"/>
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:title="@string/setting_group_map"
+        app:iconSpaceReserved="false">
+
+        <SwitchPreferenceCompat
+            app:key="setting_map_cache"
+            app:title="@string/setting_map_cache"
+            app:summary="@string/setting_map_cache_summary"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false"/>
+
+        <Preference
+            app:key="setting_map_cache_manage"
+            app:title="@string/setting_map_cache_manage"
+            app:summary="@string/setting_map_cache_manage_summary"
+            app:iconSpaceReserved="false"/>
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:title="@string/setting_group_appearance"
+        app:iconSpaceReserved="false">
+
+        <ListPreference
+            app:key="setting_theme_mode"
+            app:title="@string/setting_theme_mode"
+            app:entries="@array/array_theme_mode"
+            app:entryValues="@array/array_theme_mode_values"
+            app:defaultValue="system"
+            app:summary="@string/setting_theme_follow_system"
             app:iconSpaceReserved="false"/>
     </PreferenceCategory>
 

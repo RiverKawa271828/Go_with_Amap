@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="@dimen/radius_xl"
+    app:cardElevation="@dimen/elevation_high"
+    app:cardBackgroundColor="@color/backgroundCard">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/spacing_2xl">
+
+        <!-- 标题 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="导入区域"
+            android:textAppearance="@style/TextAppearance.Title"
+            android:textColor="@color/textPrimary"
+            android:gravity="center"
+            android:layout_marginBottom="@dimen/spacing_xl" />
+
+        <!-- 说明文字 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="选择导入方式，支持导入之前保存的区域文件或扫描二维码"
+            android:textSize="@dimen/text_body"
+            android:textColor="@color/textSecondary"
+            android:gravity="center"
+            android:layout_marginBottom="@dimen/spacing_xl" />
+
+        <!-- 导入文件按钮 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_import_file"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="从文件导入"
+            android:textColor="@color/white"
+            app:backgroundTint="@color/colorPrimary"
+            app:icon="@drawable/ic_leading_in"
+            app:iconTint="@color/white"
+            app:cornerRadius="8dp"
+            android:layout_marginBottom="@dimen/spacing_md" />
+
+        <!-- 扫描二维码按钮 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_import_qrcode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="扫描二维码"
+            android:textColor="@color/white"
+            app:backgroundTint="@color/colorAccent"
+            app:icon="@drawable/ic_search"
+            app:iconTint="@color/white"
+            app:cornerRadius="8dp"
+            android:layout_marginBottom="@dimen/spacing_xl" />
+
+        <!-- 取消按钮 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_cancel"
+            style="@style/AppTheme.Button.Outlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="取消" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

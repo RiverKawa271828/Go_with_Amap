@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    
+    <!-- ============================================ -->
+    <!-- Material Design 3 字体排版系统 - 现代风格 -->
+    <!-- ============================================ -->
+    
+    <!-- Display Large - 用于大标题、品牌展示 -->
+    <style name="TextAppearance.DisplayLarge" parent="TextAppearance.Material3.DisplayLarge">
+        <item name="android:textSize">57sp</item>
+        <item name="android:lineHeight">64sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textFontWeight">400</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+    </style>
+    
+    <style name="TextAppearance.DisplayMedium" parent="TextAppearance.Material3.DisplayMedium">
+        <item name="android:textSize">45sp</item>
+        <item name="android:lineHeight">52sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textFontWeight">400</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+    </style>
+    
+    <style name="TextAppearance.DisplaySmall" parent="TextAppearance.Material3.DisplaySmall">
+        <item name="android:textSize">36sp</item>
+        <item name="android:lineHeight">44sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textFontWeight">400</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+    </style>
+    
+    <!-- Headline Large - 用于页面大标题 -->
+    <style name="TextAppearance.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:textSize">32sp</item>
+        <item name="android:lineHeight">40sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+    </style>
+    
+    <style name="TextAppearance.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:textSize">28sp</item>
+        <item name="android:lineHeight">36sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+    </style>
+    
+    <style name="TextAppearance.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textSize">24sp</item>
+        <item name="android:lineHeight">32sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+    </style>
+    
+    <!-- Title Large - 用于卡片标题、列表标题 -->
+    <style name="TextAppearance.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textSize">22sp</item>
+        <item name="android:lineHeight">28sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+    </style>
+    
+    <style name="TextAppearance.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textSize">16sp</item>
+        <item name="android:lineHeight">24sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+        <item name="android:letterSpacing">0.015</item>
+    </style>
+    
+    <style name="TextAppearance.TitleSmall" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textSize">14sp</item>
+        <item name="android:lineHeight">20sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+    
+    <!-- Body Large - 用于主要内容文本 -->
+    <style name="TextAppearance.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textSize">16sp</item>
+        <item name="android:lineHeight">24sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textFontWeight">400</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+        <item name="android:letterSpacing">0.031</item>
+    </style>
+    
+    <style name="TextAppearance.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textSize">14sp</item>
+        <item name="android:lineHeight">20sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textFontWeight">400</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+        <item name="android:letterSpacing">0.025</item>
+    </style>
+    
+    <style name="TextAppearance.BodySmall" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textSize">12sp</item>
+        <item name="android:lineHeight">16sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textFontWeight">400</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+        <item name="android:letterSpacing">0.04</item>
+    </style>
+    
+    <!-- Label Large - 用于按钮、标签 -->
+    <style name="TextAppearance.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textSize">14sp</item>
+        <item name="android:lineHeight">20sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+        <item name="android:letterSpacing">0.007</item>
+    </style>
+    
+    <style name="TextAppearance.LabelMedium" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textSize">12sp</item>
+        <item name="android:lineHeight">16sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+        <item name="android:letterSpacing">0.05</item>
+    </style>
+    
+    <style name="TextAppearance.LabelSmall" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textSize">11sp</item>
+        <item name="android:lineHeight">16sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:textColor">@color/md_onSurface</item>
+        <item name="android:letterSpacing">0.05</item>
+    </style>
+    
+    <!-- ============================================ -->
+    <!-- 应用特定文字样式 -->
+    <!-- ============================================ -->
+    
+    <!-- 地图标记标题 -->
+    <style name="TextAppearance.MapMarkerTitle" parent="TextAppearance.TitleSmall">
+        <item name="android:textColor">@color/md_onSurface</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    
+    <!-- 地图标记描述 -->
+    <style name="TextAppearance.MapMarkerDescription" parent="TextAppearance.BodySmall">
+        <item name="android:textColor">@color/md_onSurfaceVariant</item>
+    </style>
+    
+    <!-- 列表项标题 -->
+    <style name="TextAppearance.ListItemTitle" parent="TextAppearance.BodyLarge">
+        <item name="android:textColor">@color/md_onSurface</item>
+    </style>
+    
+    <!-- 列表项描述 -->
+    <style name="TextAppearance.ListItemDescription" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_onSurfaceVariant</item>
+    </style>
+    
+    <!-- 坐标显示 -->
+    <style name="TextAppearance.Coordinates" parent="TextAppearance.BodySmall">
+        <item name="android:textColor">@color/md_onSurfaceVariant</item>
+        <item name="android:fontFamily">monospace</item>
+    </style>
+    
+    <!-- 状态文本 - 成功 -->
+    <style name="TextAppearance.StatusSuccess" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_success</item>
+    </style>
+    
+    <!-- 状态文本 - 警告 -->
+    <style name="TextAppearance.StatusWarning" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_warning</item>
+    </style>
+    
+    <!-- 状态文本 - 错误 -->
+    <style name="TextAppearance.StatusError" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_error</item>
+    </style>
+    
+    <!-- 按钮文字 -->
+    <style name="TextAppearance.ButtonText" parent="TextAppearance.LabelLarge">
+        <item name="android:textColor">@color/md_onPrimary</item>
+    </style>
+    
+    <!-- 次要按钮文字 -->
+    <style name="TextAppearance.ButtonTextSecondary" parent="TextAppearance.LabelLarge">
+        <item name="android:textColor">@color/md_primary</item>
+    </style>
+    
+    <!-- 导航标题 -->
+    <style name="TextAppearance.NavTitle" parent="TextAppearance.TitleMedium">
+        <item name="android:textColor">@color/md_onSurface</item>
+    </style>
+    
+    <!-- 导航副标题 -->
+    <style name="TextAppearance.NavSubtitle" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_onSurfaceVariant</item>
+    </style>
+    
+    <!-- 工具栏标题 -->
+    <style name="TextAppearance.ToolbarTitle" parent="TextAppearance.TitleLarge">
+        <item name="android:textColor">@color/md_onSurface</item>
+    </style>
+    
+    <!-- 对话框标题 -->
+    <style name="TextAppearance.DialogTitle" parent="TextAppearance.HeadlineSmall">
+        <item name="android:textColor">@color/md_onSurface</item>
+    </style>
+    
+    <!-- 对话框内容 -->
+    <style name="TextAppearance.DialogBody" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_onSurfaceVariant</item>
+    </style>
+    
+    <!-- 卡片标题 -->
+    <style name="TextAppearance.CardTitle" parent="TextAppearance.TitleMedium">
+        <item name="android:textColor">@color/md_onSurface</item>
+    </style>
+    
+    <!-- 卡片副标题 -->
+    <style name="TextAppearance.CardSubtitle" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_onSurfaceVariant</item>
+    </style>
+    
+</resources>

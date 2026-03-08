@@ -8,6 +8,18 @@
             android:id="@+id/nav_history"
             android:icon="@drawable/ic_menu_history"
             android:title="@string/nav_menu_history" />
+        <item
+            android:id="@+id/nav_favorites"
+            android:icon="@drawable/ic_save"
+            android:title="@string/nav_menu_favorites" />
+        <item
+            android:id="@+id/nav_import"
+            android:icon="@drawable/ic_leading_in"
+            android:title="导入区域" />
+        <item
+            android:id="@+id/nav_multipoint"
+            android:icon="@drawable/ic_gps"
+            android:title="@string/nav_menu_multipoint" />
     </group>
     
     <group>
@@ -35,10 +47,6 @@
                 android:id="@+id/nav_feedback"
                 android:icon="@drawable/ic_menu_feedback"
                 android:title="@string/nav_menu_feedback" />
-            <item
-                android:id="@+id/nav_contact"
-                android:icon="@drawable/ic_contact"
-                android:title="@string/nav_menu_contact" />
         </menu>
     </item>
 

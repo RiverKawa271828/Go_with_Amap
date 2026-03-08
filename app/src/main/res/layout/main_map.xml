@@ -12,95 +12,78 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <com.baidu.mapapi.map.MapView
-            android:id="@+id/bdMapView"
+        <com.amap.api.maps.MapView
+            android:id="@+id/amapView"
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
             android:clickable="true"
             android:focusable="true" />
 
+        <!-- 地图类型切换 - 无背景，按钮本身半透明 -->
         <RadioGroup
             android:id="@+id/RadioGroupMapType"
-            android:layout_width="90dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
             android:layout_alignParentTop="true"
-            android:layout_marginEnd="5dp"
-            android:layout_marginTop="4dip"
+            android:layout_marginEnd="8dp"
+            android:layout_marginTop="8dp"
             android:orientation="vertical">
 
             <RadioButton
                 android:id="@+id/mapNormal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
                 android:checked="true"
-                android:minHeight="48dp"
                 android:text="@string/map_pic_normal"
-                android:textColor="#00796B" />
+                android:textColor="@color/md_primary"
+                android:buttonTint="@color/md_primary"
+                android:textSize="11sp"
+                android:background="#80FFFFFF"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp" />
 
             <RadioButton
                 android:id="@+id/mapSatellite"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:minHeight="48dp"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
                 android:text="@string/map_pic_sate"
-                android:textColor="#00796B" />
+                android:textColor="@color/md_primary"
+                android:buttonTint="@color/md_primary"
+                android:textSize="11sp"
+                android:background="#80FFFFFF"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp" />
         </RadioGroup>
 
-        <ImageButton
-            android:id="@+id/cur_position"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+        <!-- 右侧控制按钮组 - 只保留坐标和当前位置按钮 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
-            android:layout_marginTop="350dp"
-            android:layout_marginEnd="10dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/cur_position"
-            android:theme="@style/RippleWhite"
-            app:srcCompat="@drawable/ic_home_position"
-            app:tint="@color/colorAccent" />
+            android:layout_marginEnd="8dp"
+            android:layout_marginTop="160dp"
+            android:orientation="vertical">
 
-        <ImageButton
-            android:id="@+id/zoom_in"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_alignParentEnd="true"
-            android:layout_marginTop="383dp"
-            android:layout_marginEnd="10dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/zoom_in"
-            android:theme="@style/RippleWhite"
-            app:srcCompat="@drawable/ic_zoom_in"
-            app:tint="@color/colorAccent" />
+            <ImageButton
+                android:id="@+id/input_pos"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/input_button"
+                app:srcCompat="@drawable/ic_input"
+                app:tint="@color/colorAccent" />
 
-        <ImageButton
-            android:id="@+id/zoom_out"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_alignParentEnd="true"
-            android:layout_marginTop="416dp"
-            android:layout_marginEnd="10dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/zoom_out"
-            android:theme="@style/RippleWhite"
-            app:srcCompat="@drawable/ic_zoom_out"
-            app:tint="@color/colorAccent" />
-
-        <ImageButton
-            android:id="@+id/input_pos"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_alignParentEnd="true"
-            android:layout_marginTop="240dp"
-            android:layout_marginEnd="10dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/input_button"
-            android:theme="@style/RippleWhite"
-            app:srcCompat="@drawable/ic_input"
-            app:tint="@color/colorAccent" />
-
+            <ImageButton
+                android:id="@+id/cur_position"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginTop="4dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/cur_position"
+                app:srcCompat="@drawable/ic_home_position"
+                app:tint="@color/colorAccent" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"

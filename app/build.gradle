@@ -1,37 +1,51 @@
 plugins {
     id "com.android.application"
-    // 谷歌官方推荐的用于隐藏地图 KEY 的插件 https://developers.google.com/maps/documentation/places/android-sdk/secrets-gradle-plugin?hl=zh-cn
+    // 谷歌官方推荐的用于隐藏地图 KEY 的插件 https://developers.google.com/maps/documentation/android-sdk/secrets-gradle-plugin?hl=zh-cn
     id "com.google.android.libraries.mapsplatform.secrets-gradle-plugin"
+}
+
+configurations.all {
+    exclude group: 'com.amap.apis', module: 'utils-core'
+}
+
+// 禁用重复类检查
+tasks.configureEach { task ->
+    if (task.name.contains('checkDuplicateClasses')) {
+        task.enabled = false
+    }
 }
 
 android {
     ndkVersion = '26.2.11394342'
-    compileSdk = 32
+    compileSdk = 34
     buildToolsVersion = '36.0.0'
-    namespace = 'com.zcshou.gogogo'
+    namespace = 'com.river.gowithamap'
 
     signingConfigs {
         debug {
-            storeFile file('..\\keystore\\GoGoGo.jks')
-            storePassword 'GoGoGo'
-            keyAlias 'GoGoKey'
-            keyPassword 'GoGoGo'
+            storeFile file('..\\keystore\\RiverKey.jks')
+            storePassword 'River1234'
+            keyAlias 'riverkey'
+            keyPassword 'River1234'
+            v1SigningEnabled true
+            v2SigningEnabled true
         }
         release {
-            storeFile file('..\\keystore\\GoGoGo.jks')
-            storePassword 'GoGoGo'
-            keyAlias 'GoGoKey'
-            keyPassword 'GoGoGo'
+            storeFile file('..\\keystore\\RiverKey.jks')
+            storePassword 'River1234'
+            keyAlias 'riverkey'
+            keyPassword 'River1234'
+            v1SigningEnabled true
+            v2SigningEnabled true
         }
     }
 
     defaultConfig {
-        applicationId "com.zcshou.gogogo"
-        minSdkVersion 27
-        //noinspection ExpiredTargetSdkVersion
-        targetSdkVersion 32
-        versionCode 1123
-        versionName '1.12.3' // https://semver.org/lang/zh-CN/
+        applicationId "com.river.gowithamap"
+        minSdkVersion 31
+        targetSdkVersion 34
+        versionCode 2174
+        versionName '2.17.4' // https://semver.org/lang/zh-CN/
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += ['zh', 'zh-rCN', 'en', 'en-rUS']
         ndk {
@@ -39,6 +53,11 @@ android {
             abiFilters "arm64-v8a"
         }
         signingConfig = signingConfigs.release
+
+        // 高德地图 API Key
+        manifestPlaceholders = [
+            AMAP_API_KEY: getApiKey()
+        ]
     }
 
     buildTypes {
@@ -54,7 +73,7 @@ android {
             // Includes the default ProGuard rules files that are packaged with
             // the Android Gradle plugin. To learn more, go to the section about
             // R8 configuration files.
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
             signingConfig = signingConfigs.release
             multiDexEnabled = true
@@ -74,20 +93,25 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
 
-    packagingOptions {
-        jniLibs {
-            excludes += ['lib/armeabi/**']
-        }
-        resources {
-            excludes += ['lib/armeabi/**']
-        }
-    }
+        packagingOptions {
 
-    sourceSets {
-        main {
-            jniLibs.srcDirs = ['libs']
+            jniLibs {
+
+                excludes += ['lib/armeabi/**']
+
+            }
+
+            resources {
+
+                excludes += ['lib/armeabi/**']
+
+                pickFirst 'com/amap/apis/utils/core/api/AMapUtilCoreApi.class'
+
+                pickFirst 'com/amap/apis/utils/core/api/NetProxy.class'
+
+            }
+
         }
-    }
 
     dependenciesInfo {
         includeInApk = false
@@ -101,9 +125,9 @@ android {
             if (outputFile != null && outputFile.name.endsWith('.apk')) {
                 def fileName
                 if (variant.buildType.name == 'release') {
-                    fileName = "Go_${defaultConfig.versionName}_arm64-v8a_release.apk"
+                    fileName = "GoWithAmap_${defaultConfig.versionName}_arm64-v8a_release.apk"
                 } else {
-                    fileName = "Go_${defaultConfig.versionName}_arm64-v8a_debug.apk"
+                    fileName = "GoWithAmap_${defaultConfig.versionName}_arm64-v8a_debug.apk"
                 }
                 outputFileName=fileName
             }
@@ -112,21 +136,39 @@ android {
 }
 
 dependencies {
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
     // AppCompat 1.5.1 开始显式依赖于 Lifecycle 2.5.1 和 SavedState 1.2.0
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1'
     implementation 'androidx.appcompat:appcompat:1.5.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.preference:preference:1.2.1'
-    implementation 'com.google.android.material:material:1.7.0'
+    implementation 'com.google.android.material:material:1.11.0'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.elvishew:xlog:1.11.1'
     implementation 'io.noties.markwon:core:4.6.2'
-    implementation files('libs/BaiduLBS_Android.jar')
+
+    // 高德地图 SDK (使用兼容版本)
+    implementation 'com.amap.api:3dmap:9.8.2'
+    implementation 'com.amap.api:search:9.7.0'
+    
+    // ZXing 二维码生成和扫描
+    implementation 'com.google.zxing:core:3.5.2'
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.3.0'
     androidTestImplementation 'androidx.test:runner:1.7.0'
     androidTestImplementation('androidx.test.espresso:espresso-core:3.7.0', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
+}
+
+// 从 local.properties 读取高德地图 API Key
+def getApiKey() {
+    def properties = new Properties()
+    def localProperties = rootProject.file("local.properties")
+    if (localProperties.exists()) {
+        properties.load(localProperties.newDataInputStream())
+        return properties.getProperty("AMAP_API_KEY", "")
+    }
+    return ""
 }

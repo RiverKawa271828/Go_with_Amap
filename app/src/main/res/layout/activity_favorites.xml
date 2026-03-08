@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/backgroundLight"
+    android:orientation="vertical">
+
+    <!-- 顶部工具栏 -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/colorPrimary"
+        android:elevation="4dp"
+        app:title="@string/nav_menu_favorites"
+        app:titleTextColor="@color/white"
+        app:navigationIcon="@drawable/ic_down"
+        app:navigationIconTint="@color/white" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="@dimen/spacing_lg">
+
+        <!-- 切换按钮 - 左边坐标，右边区域 -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="@dimen/radius_md"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@color/md_surfaceContainer"
+            android:layout_marginBottom="@dimen/spacing_md">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="@dimen/spacing_xs">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_coordinates"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="坐标"
+                    android:textSize="@dimen/text_body"
+                    android:textColor="@color/md_onPrimary"
+                    app:backgroundTint="@color/md_primary"
+                    app:cornerRadius="@dimen/radius_sm"
+                    android:elevation="2dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_regions"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="区域"
+                    android:textSize="@dimen/text_body"
+                    android:textColor="@color/md_onSurfaceVariant"
+                    app:backgroundTint="@android:color/transparent"
+                    app:cornerRadius="@dimen/radius_sm"
+                    android:elevation="0dp" />
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- 内容区域 -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <!-- 坐标列表 -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_coordinates"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:cardBackgroundColor="@color/backgroundCard"
+                app:cardCornerRadius="@dimen/radius_md"
+                app:cardElevation="0dp">
+
+                <ListView
+                    android:id="@+id/favorites_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:padding="@dimen/spacing_md"
+                    android:divider="@null"
+                    android:dividerHeight="@dimen/spacing_sm" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 区域列表 -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_regions"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:cardBackgroundColor="@color/backgroundCard"
+                app:cardCornerRadius="@dimen/radius_md"
+                app:cardElevation="0dp"
+                android:visibility="gone">
+
+                <ListView
+                    android:id="@+id/regions_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:padding="@dimen/spacing_md"
+                    android:divider="@null"
+                    android:dividerHeight="@dimen/spacing_sm" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </FrameLayout>
+
+        <!-- 导入功能区域 - 只在区域标签显示 -->
+        <LinearLayout
+            android:id="@+id/import_section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingTop="@dimen/spacing_md"
+            android:visibility="gone">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_import_file"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="@dimen/spacing_sm"
+                android:text="导入文件"
+                android:textColor="@color/white"
+                app:backgroundTint="@color/colorPrimary"
+                app:icon="@drawable/ic_leading_in"
+                app:iconTint="@color/white"
+                app:cornerRadius="8dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_import_qrcode"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="@dimen/spacing_sm"
+                android:text="扫描二维码"
+                android:textColor="@color/white"
+                app:backgroundTint="@color/colorAccent"
+                app:icon="@drawable/ic_search"
+                app:iconTint="@color/white"
+                app:cornerRadius="8dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

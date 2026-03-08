@@ -1,44 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:layout_gravity="center_vertical"
-    android:gravity="center_vertical"
+    android:background="@color/backgroundCard"
     android:orientation="vertical">
 
+    <!-- 顶部工具栏 -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/colorPrimary"
+        android:elevation="4dp"
+        app:title="@string/app_history"
+        app:titleTextColor="@color/white"
+        app:titleTextAppearance="@style/TextAppearance.ToolbarTitle"
+        app:navigationIcon="@drawable/ic_down"
+        app:navigationIconTint="@color/white" />
+
+    <!-- 搜索栏卡片 -->
     <LinearLayout
         android:id="@+id/search_linear"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:visibility="gone">
+        android:orientation="vertical">
 
-        <SearchView
-            android:id="@+id/searchView"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_gravity="end|bottom"
-            android:layout_marginTop="5dp"
-            android:iconifiedByDefault="true"
-            android:queryHint="请输入搜索内容" />
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/spacing_lg"
+            app:cardCornerRadius="@dimen/radius_md"
+            app:cardElevation="@dimen/elevation_low"
+            app:cardBackgroundColor="@color/backgroundCard">
+
+            <SearchView
+                android:id="@+id/searchView"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:iconifiedByDefault="true"
+                android:queryHint="请输入搜索内容" />
+
+        </com.google.android.material.card.MaterialCardView>
+
     </LinearLayout>
 
+    <!-- 空状态提示 -->
     <TextView
         android:id="@+id/record_no_textview"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/history_idle"
-        android:textSize="17sp"
-        android:padding="10dp"
+        android:textSize="@dimen/text_body"
+        android:textColor="@color/textTertiary"
+        android:padding="@dimen/spacing_2xl"
         android:textAlignment="center"
-        android:layout_gravity="center"/>
+        android:layout_gravity="center"
+        android:visibility="gone" />
 
-    <ListView
-        android:id="@+id/record_list_view"
+    <!-- 历史列表容器 - 与我的收藏保持一致 -->
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone">
-    </ListView>
+        android:layout_marginHorizontal="@dimen/spacing_lg"
+        android:layout_marginBottom="@dimen/spacing_lg"
+        app:cardBackgroundColor="@color/backgroundLight"
+        app:cardCornerRadius="@dimen/radius_md"
+        app:cardElevation="0dp">
+
+        <ListView
+            android:id="@+id/record_list_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:padding="0dp"
+            android:divider="@null"
+            android:dividerHeight="0dp" />
+
+    </com.google.android.material.card.MaterialCardView>
 
 </LinearLayout>

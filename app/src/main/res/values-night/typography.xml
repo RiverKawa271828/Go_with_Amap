@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    
+    <!-- ============================================ -->
+    <!-- Material Design 3 字体排版系统 - 深色模式 -->
+    <!-- ============================================ -->
+    
+    <!-- Display Large -->
+    <style name="TextAppearance.DisplayLarge" parent="TextAppearance.Material3.DisplayLarge">
+        <item name="android:textSize">57sp</item>
+        <item name="android:lineHeight">64sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.DisplayMedium" parent="TextAppearance.Material3.DisplayMedium">
+        <item name="android:textSize">45sp</item>
+        <item name="android:lineHeight">52sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.DisplaySmall" parent="TextAppearance.Material3.DisplaySmall">
+        <item name="android:textSize">36sp</item>
+        <item name="android:lineHeight">44sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <!-- Headline -->
+    <style name="TextAppearance.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:textSize">32sp</item>
+        <item name="android:lineHeight">40sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:textSize">28sp</item>
+        <item name="android:lineHeight">36sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textSize">24sp</item>
+        <item name="android:lineHeight">32sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <!-- Title -->
+    <style name="TextAppearance.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textSize">22sp</item>
+        <item name="android:lineHeight">28sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textSize">16sp</item>
+        <item name="android:lineHeight">24sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.TitleSmall" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textSize">14sp</item>
+        <item name="android:lineHeight">20sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <!-- Body -->
+    <style name="TextAppearance.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textSize">16sp</item>
+        <item name="android:lineHeight">24sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textSize">14sp</item>
+        <item name="android:lineHeight">20sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.BodySmall" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textSize">12sp</item>
+        <item name="android:lineHeight">16sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <!-- Label -->
+    <style name="TextAppearance.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textSize">14sp</item>
+        <item name="android:lineHeight">20sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.LabelMedium" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textSize">12sp</item>
+        <item name="android:lineHeight">16sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.LabelSmall" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textSize">11sp</item>
+        <item name="android:lineHeight">16sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <!-- 应用特定样式 -->
+    <style name="TextAppearance.MapMarkerTitle" parent="TextAppearance.TitleSmall">
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    
+    <style name="TextAppearance.MapMarkerDescription" parent="TextAppearance.BodySmall">
+        <item name="android:textColor">@color/md_onSurfaceVariant_dark</item>
+    </style>
+    
+    <style name="TextAppearance.ListItemTitle" parent="TextAppearance.BodyLarge">
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.ListItemDescription" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_onSurfaceVariant_dark</item>
+    </style>
+    
+    <style name="TextAppearance.Coordinates" parent="TextAppearance.BodySmall">
+        <item name="android:textColor">@color/md_onSurfaceVariant_dark</item>
+        <item name="android:fontFamily">monospace</item>
+    </style>
+    
+    <style name="TextAppearance.StatusSuccess" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_success_dark</item>
+    </style>
+    
+    <style name="TextAppearance.StatusWarning" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_warning_dark</item>
+    </style>
+    
+    <style name="TextAppearance.StatusError" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_error_dark</item>
+    </style>
+    
+    <style name="TextAppearance.ButtonText" parent="TextAppearance.LabelLarge">
+        <item name="android:textColor">@color/md_onPrimary_dark</item>
+    </style>
+    
+    <style name="TextAppearance.ButtonTextSecondary" parent="TextAppearance.LabelLarge">
+        <item name="android:textColor">@color/md_primary_dark</item>
+    </style>
+    
+    <style name="TextAppearance.NavTitle" parent="TextAppearance.TitleMedium">
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.NavSubtitle" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_onSurfaceVariant_dark</item>
+    </style>
+    
+    <style name="TextAppearance.ToolbarTitle" parent="TextAppearance.TitleLarge">
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.DialogTitle" parent="TextAppearance.HeadlineSmall">
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.DialogBody" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_onSurfaceVariant_dark</item>
+    </style>
+    
+    <style name="TextAppearance.CardTitle" parent="TextAppearance.TitleMedium">
+        <item name="android:textColor">@color/md_onSurface_dark</item>
+    </style>
+    
+    <style name="TextAppearance.CardSubtitle" parent="TextAppearance.BodyMedium">
+        <item name="android:textColor">@color/md_onSurfaceVariant_dark</item>
+    </style>
+    
+</resources>
