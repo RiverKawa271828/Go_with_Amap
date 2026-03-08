@@ -241,40 +241,37 @@ LatLng bestPoint = findBestIntersectionPoint(allIntersections);
 
 **编译前必须配置高德地图 API Key，否则应用无法正常运行！**
 
-本项目使用**外部密钥目录**来管理敏感文件（API Key 和签名密钥），避免将敏感信息提交到 Git。
+#### 快速开始
 
-#### 本地开发配置
+1. 复制示例配置文件：
+```bash
+cp local.properties.example local.properties
+```
 
-1. **准备外部密钥目录**（已创建 `/home/ri/work/Go_with_Amap_with_key`）
-
-2. **在外部目录创建 `local.properties` 文件**：
+2. 编辑 `local.properties`，填入你的高德 API Key：
 ```properties
-# 高德地图 API Key（必需）
-# 前往 https://console.amap.com/dev/key/app 创建应用获取
+sdk.dir=/path/to/Android/Sdk
 AMAP_API_KEY=你的高德地图API密钥
-
-# 签名密钥配置（可选，使用默认配置可留空）
-KEYSTORE_PASSWORD=River1234
-KEY_ALIAS=riverkey
-KEY_PASSWORD=River1234
 ```
 
-3. **将签名密钥放入外部目录**：
-```
-/home/ri/work/Go_with_Amap_with_key/
-├── local.properties      # API Key 和签名密码配置
-└── keystore/
-    └── RiverKey.jks      # 签名密钥文件
-```
+3. 高德 Key 申请步骤：
+   - 前往 [高德开放平台](https://console.amap.com/dev/key/app)
+   - 创建应用，添加「地图 SDK」「定位 SDK」「搜索 SDK」服务
+   - 绑定包名 `com.river.gowithamap` 和你的调试签名 SHA1
+   - 获取 Key 并填入 `local.properties`
 
-**注意**：
-- 高德 Key 需要绑定应用的 SHA1 指纹和包名 `com.river.gowithamap`
-- 调试时使用调试签名的 SHA1，发布时需要重新配置发布签名的 SHA1
-- 具体申请流程请参考高德官方文档
+#### 签名配置（可选）
 
-#### 备用配置（向后兼容）
+- **调试构建**：自动使用 Android 默认调试签名，无需配置
+- **发布构建**：如需使用自定义签名，配置 `KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD`
 
-如果外部目录不存在，构建系统会回退到项目目录的 `local.properties` 和 `keystore/RiverKey.jks`。
+#### 维护者本地开发
+
+本项目维护者使用**外部密钥目录**方案：
+- 公开仓库 (`Go_with_Amap`)：不包含任何敏感文件
+- 本地开发目录 (`Go_with_Amap_with_key`)：包含签名密钥和 API Key
+
+构建系统自动检测外部目录，存在时优先使用外部密钥。
 
 ### 构建 APK
 

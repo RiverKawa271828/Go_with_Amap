@@ -1,0 +1,17 @@
+## 本地配置文件示例
+# 复制此文件为 local.properties 并填入你的配置
+
+# Android SDK 路径（必需）
+sdk.dir=/home/ri/Android/Sdk
+
+# 高德地图 API Key（必需）
+# 前往 https://console.amap.com/dev/key/app 创建应用获取
+# 需要开通的服务：地图 SDK、定位 SDK、搜索 SDK
+# 绑定的 SHA1 和包名必须与项目一致
+AMAP_API_KEY=你的高德地图API密钥
+
+# 签名密钥配置（可选，用于发布构建）
+# 如果留空，将使用默认的调试签名
+KEYSTORE_PASSWORD=密钥库密码
+KEY_ALIAS=密钥别名
+KEY_PASSWORD=密钥密码
