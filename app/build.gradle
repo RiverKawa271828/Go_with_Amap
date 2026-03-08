@@ -142,7 +142,7 @@ dependencies {
 
     // 高德地图 SDK (使用兼容版本)
     implementation 'com.amap.api:3dmap:9.8.2'
-    implementation 'com.amap.api:search:9.7.0'
+    implementation 'com.amap.api:search:9.7.1'
     
     // ZXing 二维码生成和扫描
     implementation 'com.google.zxing:core:3.5.2'
