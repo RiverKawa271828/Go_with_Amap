@@ -3233,9 +3233,15 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
      * 处理二维码内容
      */
     private void processQRContent(String content) {
+        XLog.i("导入内容: " + content);
         try {
             JSONObject json = new JSONObject(content);
             String type = json.optString("type");
+            // 处理可能存在的空白字符和大小写问题
+            if (type != null) {
+                type = type.trim().toLowerCase();
+            }
+            XLog.i("导入类型: '" + type + "'");
 
             if ("circle".equals(type)) {
                 // 导入圆形区域
@@ -3263,8 +3269,61 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 } else {
                     GoUtils.DisplayToast(this, "无效的区域数据");
                 }
+            } else if ("location".equals(type)) {
+                // 导入坐标点
+                String name = json.optString("name", "导入的位置");
+                double lat = json.optDouble("lat", 0);
+                double lon = json.optDouble("lon", 0);
+
+                if (lat != 0 && lon != 0) {
+                    // 保存到坐标收藏数据库
+                    ContentValues contentValues = new ContentValues();
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_NAME, name);
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_LATITUDE, String.valueOf(lat));
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_LONGITUDE, String.valueOf(lon));
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_TIMESTAMP, System.currentTimeMillis());
+
+                    DataBaseFavorites.saveFavorite(mFavoritesDB, contentValues);
+
+                    // 在地图上显示该位置
+                    LatLng latLng = new LatLng(lat, lon);
+                    mMarkLatLngMap = latLng;
+                    mMarkName = name;
+                    mAMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16));
+
+                    GoUtils.DisplayToast(this, "坐标导入成功: " + name);
+                    XLog.i("导入坐标: " + name + " (" + lat + ", " + lon + ")");
+                } else {
+                    GoUtils.DisplayToast(this, "无效的坐标数据");
+                }
+            } else if (type == null || type.isEmpty()) {
+                // 没有type字段，检查是否有坐标数据，有则默认当作坐标点导入
+                double lat = json.optDouble("lat", 0);
+                double lon = json.optDouble("lon", 0);
+                if (lat != 0 && lon != 0) {
+                    XLog.i("无type字段，检测到坐标数据，默认按坐标点导入");
+                    String name = json.optString("name", "导入的位置");
+                    ContentValues contentValues = new ContentValues();
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_NAME, name);
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_LATITUDE, String.valueOf(lat));
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_LONGITUDE, String.valueOf(lon));
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_TIMESTAMP, System.currentTimeMillis());
+                    DataBaseFavorites.saveFavorite(mFavoritesDB, contentValues);
+
+                    // 在地图上显示
+                    LatLng latLng = new LatLng(lat, lon);
+                    mMarkLatLngMap = latLng;
+                    mMarkName = name;
+                    mAMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16));
+
+                    GoUtils.DisplayToast(this, "坐标导入成功: " + name);
+                } else {
+                    GoUtils.DisplayToast(this, "无法识别数据格式");
+                }
             } else {
-                GoUtils.DisplayToast(this, "未知的数据类型");
+                String actualType = json.optString("type", "(无type字段)");
+                XLog.w("未知的数据类型: '" + actualType + "'");
+                GoUtils.DisplayToast(this, "未知的数据类型: '" + actualType + "'");
             }
         } catch (JSONException e) {
             XLog.e("解析导入数据失败: " + e.getMessage());
