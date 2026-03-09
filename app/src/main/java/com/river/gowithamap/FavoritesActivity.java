@@ -649,7 +649,11 @@ public class FavoritesActivity extends BaseActivity {
         try {
             JSONObject json = new JSONObject(content);
             String type = json.optString("type");
-            XLog.i("导入类型: " + type);
+            // 处理可能存在的空白字符和大小写问题
+            if (type != null) {
+                type = type.trim().toLowerCase();
+            }
+            XLog.i("导入类型: '" + type + "'");
 
             if ("circle".equals(type)) {
                 // 导入圆形区域
@@ -701,8 +705,29 @@ public class FavoritesActivity extends BaseActivity {
                 } else {
                     Toast.makeText(this, "无效的坐标数据", Toast.LENGTH_SHORT).show();
                 }
+            } else if (type == null || type.isEmpty()) {
+                // 没有type字段，检查是否有坐标数据，有则默认当作坐标点导入
+                double lat = json.optDouble("lat", 0);
+                double lon = json.optDouble("lon", 0);
+                if (lat != 0 && lon != 0) {
+                    XLog.i("无type字段，检测到坐标数据，默认按坐标点导入");
+                    String name = json.optString("name", "导入的位置");
+                    ContentValues contentValues = new ContentValues();
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_NAME, name);
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_LATITUDE, String.valueOf(lat));
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_LONGITUDE, String.valueOf(lon));
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_TIMESTAMP, System.currentTimeMillis());
+                    DataBaseFavorites.saveFavorite(mFavoritesDB, contentValues);
+                    loadFavorites();
+                    Toast.makeText(this, "坐标导入成功", Toast.LENGTH_SHORT).show();
+                    showCoordinatesView();
+                } else {
+                    Toast.makeText(this, "无法识别数据格式", Toast.LENGTH_SHORT).show();
+                }
             } else {
-                Toast.makeText(this, "未知的数据类型: " + type, Toast.LENGTH_SHORT).show();
+                String actualType = json.optString("type", "(无type字段)");
+                XLog.w("未知的数据类型: '" + actualType + "'");
+                Toast.makeText(this, "未知的数据类型: '" + actualType + "'", Toast.LENGTH_LONG).show();
             }
         } catch (JSONException e) {
             XLog.e("解析导入数据失败: " + e.getMessage());
