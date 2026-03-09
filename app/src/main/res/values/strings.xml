@@ -7,7 +7,12 @@
     <string name="app_statement">仅供学习使用，否则后果自负！</string>
     <string name="app_service_tips">Go with Amap 服务正在运行中</string>
     <string name="app_agreement">用户协议</string>
-    <string name="app_agreement_content">"1. 本软件专为学习 Android 开发使用，不会收集任何用户数据。"
+    <string name="app_agreement_content">"
+    【关于本软件】
+    本软件是基于 "影梭 (GoGoGo)" 的二次开发版本。原项目由 ZCShou 开发，原项目地址：https://github.com/ZCShou/GoGoGo
+    当前版本由 River 维护，改用高德地图 SDK 实现，仅供学习 Android 开发和地图 SDK 使用。
+
+    1. 本软件专为学习 Android 开发使用，不会收集任何用户数据。"
     "严禁利用本软件侵犯他人隐私权或者用于游戏牟利，如软件使用者不能遵守此规定， 请立即删除。"
     "对于因用户使用本软件而造成自身或他人隐私泄露等任何不良后果，均由用户自行承担，开发者不负任何责任。\n"
     "2. 用户不得对本软件产品进行反向工程（reverse engineer）、反向编译（decompile）或反汇编（disassemble）， 违者属于侵权行为，并自行承担由此产生的不利后果。\n"

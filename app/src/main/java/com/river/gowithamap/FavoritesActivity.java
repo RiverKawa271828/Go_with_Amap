@@ -645,17 +645,19 @@ public class FavoritesActivity extends BaseActivity {
      * 处理二维码内容
      */
     private void processQRContent(String content) {
+        XLog.i("导入内容: " + content);
         try {
             JSONObject json = new JSONObject(content);
             String type = json.optString("type");
-            
+            XLog.i("导入类型: " + type);
+
             if ("circle".equals(type)) {
                 // 导入圆形区域
                 String name = json.optString("name", "导入的区域");
                 double lat = json.optDouble("lat", 0);
                 double lon = json.optDouble("lon", 0);
                 double radius = json.optDouble("radius", 1000);
-                
+
                 if (lat != 0 && lon != 0) {
                     // 保存到数据库
                     ContentValues contentValues = new ContentValues();
@@ -664,19 +666,43 @@ public class FavoritesActivity extends BaseActivity {
                     contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_CENTER_LON, String.valueOf(lon));
                     contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_RADIUS, String.valueOf(radius));
                     contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
-                    
+
                     DataBaseFavoriteRegions.saveFavoriteRegion(mFavoriteRegionsDB, contentValues);
                     loadFavoriteRegions();
-                    
+
                     Toast.makeText(this, "区域导入成功", Toast.LENGTH_SHORT).show();
-                    
+
                     // 切换到区域标签页
                     showRegionsView();
                 } else {
                     Toast.makeText(this, "无效的区域数据", Toast.LENGTH_SHORT).show();
                 }
+            } else if ("location".equals(type)) {
+                // 导入坐标点
+                String name = json.optString("name", "导入的位置");
+                double lat = json.optDouble("lat", 0);
+                double lon = json.optDouble("lon", 0);
+
+                if (lat != 0 && lon != 0) {
+                    // 保存到坐标收藏数据库
+                    ContentValues contentValues = new ContentValues();
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_NAME, name);
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_LATITUDE, String.valueOf(lat));
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_LONGITUDE, String.valueOf(lon));
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_TIMESTAMP, System.currentTimeMillis());
+
+                    DataBaseFavorites.saveFavorite(mFavoritesDB, contentValues);
+                    loadFavorites();
+
+                    Toast.makeText(this, "坐标导入成功", Toast.LENGTH_SHORT).show();
+
+                    // 切换到坐标标签页
+                    showCoordinatesView();
+                } else {
+                    Toast.makeText(this, "无效的坐标数据", Toast.LENGTH_SHORT).show();
+                }
             } else {
-                Toast.makeText(this, "未知的数据类型", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "未知的数据类型: " + type, Toast.LENGTH_SHORT).show();
             }
         } catch (JSONException e) {
             XLog.e("解析导入数据失败: " + e.getMessage());

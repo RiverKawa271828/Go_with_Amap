@@ -19,15 +19,19 @@ public class DataBaseFavorites extends SQLiteOpenHelper {
     public static final String DB_COLUMN_NAME = "DB_COLUMN_NAME";
     public static final String DB_COLUMN_LATITUDE = "DB_COLUMN_LATITUDE";
     public static final String DB_COLUMN_LONGITUDE = "DB_COLUMN_LONGITUDE";
+    public static final String DB_COLUMN_LATITUDE_WGS84 = "DB_COLUMN_LATITUDE_WGS84";
+    public static final String DB_COLUMN_LONGITUDE_WGS84 = "DB_COLUMN_LONGITUDE_WGS84";
     public static final String DB_COLUMN_TIMESTAMP = "DB_COLUMN_TIMESTAMP";
 
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 2;
     private static final String DB_NAME = "Favorites.db";
     private static final String CREATE_TABLE = "create table if not exists " + TABLE_NAME +
             " (DB_COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
             "DB_COLUMN_NAME TEXT NOT NULL, " +
             "DB_COLUMN_LATITUDE TEXT NOT NULL, " +
             "DB_COLUMN_LONGITUDE TEXT NOT NULL, " +
+            "DB_COLUMN_LATITUDE_WGS84 TEXT, " +
+            "DB_COLUMN_LONGITUDE_WGS84 TEXT, " +
             "DB_COLUMN_TIMESTAMP BIGINT NOT NULL)";
 
     public DataBaseFavorites(Context context) {
@@ -41,9 +45,16 @@ public class DataBaseFavorites extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase sqLiteDatabase, int oldVersion, int newVersion) {
-        String sql = "DROP TABLE IF EXISTS " + TABLE_NAME;
-        sqLiteDatabase.execSQL(sql);
-        onCreate(sqLiteDatabase);
+        if (oldVersion < 2) {
+            // 升级：添加 WGS84 坐标列
+            try {
+                sqLiteDatabase.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN DB_COLUMN_LATITUDE_WGS84 TEXT");
+                sqLiteDatabase.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN DB_COLUMN_LONGITUDE_WGS84 TEXT");
+                XLog.i("数据库升级成功：添加 WGS84 坐标列");
+            } catch (Exception e) {
+                XLog.e("数据库升级失败: " + e.getMessage());
+            }
+        }
     }
 
     // 保存收藏
@@ -89,6 +100,15 @@ public class DataBaseFavorites extends SQLiteOpenHelper {
                     item.put(DB_COLUMN_NAME, cursor.getString(cursor.getColumnIndexOrThrow(DB_COLUMN_NAME)));
                     item.put(DB_COLUMN_LATITUDE, cursor.getString(cursor.getColumnIndexOrThrow(DB_COLUMN_LATITUDE)));
                     item.put(DB_COLUMN_LONGITUDE, cursor.getString(cursor.getColumnIndexOrThrow(DB_COLUMN_LONGITUDE)));
+                    // WGS84 坐标可能为空（旧数据）
+                    int latWgs84Index = cursor.getColumnIndex(DB_COLUMN_LATITUDE_WGS84);
+                    int lonWgs84Index = cursor.getColumnIndex(DB_COLUMN_LONGITUDE_WGS84);
+                    if (latWgs84Index >= 0) {
+                        item.put(DB_COLUMN_LATITUDE_WGS84, cursor.getString(latWgs84Index));
+                    }
+                    if (lonWgs84Index >= 0) {
+                        item.put(DB_COLUMN_LONGITUDE_WGS84, cursor.getString(lonWgs84Index));
+                    }
                     item.put(DB_COLUMN_TIMESTAMP, cursor.getLong(cursor.getColumnIndexOrThrow(DB_COLUMN_TIMESTAMP)));
                     data.add(item);
                 } while (cursor.moveToNext());

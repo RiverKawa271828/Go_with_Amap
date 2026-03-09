@@ -6,17 +6,25 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.TextPaint;
 import android.text.method.LinkMovementMethod;
 import android.text.method.MovementMethod;
 import android.text.style.ClickableSpan;
+import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.TextView;
@@ -42,6 +50,11 @@ public class WelcomeActivity extends BaseActivity {
     private Boolean mPrivacy;
     private boolean isFirstCreate = true;
 
+    private MediaPlayer mMediaPlayer;
+    private GestureDetector mGestureDetector;
+    private Handler mDoubleTapHandler;
+    private static final long DOUBLE_TAP_TIMEOUT = 300; // 双击超时时间
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -63,6 +76,44 @@ public class WelcomeActivity extends BaseActivity {
 
         // 其他情况（包括完全关闭后重新打开）都显示启动页
         setContentView(R.layout.activity_welcome);
+
+        // 加载 Maxwell 猫 GIF - 使用 WebView (硬件加速，更流畅)
+        WebView webViewMaxwell = findViewById(R.id.webview_maxwell);
+
+        // 启用硬件加速和优化设置
+        webViewMaxwell.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        WebSettings webSettings = webViewMaxwell.getSettings();
+        webSettings.setLoadWithOverviewMode(true);
+        webSettings.setUseWideViewPort(true);
+        webSettings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+
+        webViewMaxwell.setWebChromeClient(new WebChromeClient());
+        webViewMaxwell.setWebViewClient(new WebViewClient());
+
+        // 使用 HTML 加载 GIF，自适应大小
+        String gifUrl = "file:///android_res/drawable/maxwell_spinning.gif";
+        String html = "<html><body style=\"margin:0;padding:0;background-color:#FBFDF9;display:flex;justify-content:center;align-items:center;height:100vh;\">" +
+                "<img src=\"" + gifUrl + "\" style=\"max-width:80%;max-height:80%;width:auto;height:auto;object-fit:contain;\" />" +
+                "</body></html>";
+        webViewMaxwell.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+
+        // 初始化双击检测
+        mDoubleTapHandler = new Handler(Looper.getMainLooper());
+        mGestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onDoubleTap(MotionEvent e) {
+                playStockMarketSound();
+                return true;
+            }
+        });
+
+        // 设置双击监听
+        webViewMaxwell.setOnTouchListener((v, event) -> {
+            if (mGestureDetector.onTouchEvent(event)) {
+                return true;
+            }
+            return v.onTouchEvent(event);
+        });
 
         Button startBtn = findViewById(R.id.startButton);
         startBtn.setOnClickListener(v -> startMainActivity());
@@ -106,6 +157,28 @@ public class WelcomeActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        // 释放 MediaPlayer
+        if (mMediaPlayer != null) {
+            mMediaPlayer.release();
+            mMediaPlayer = null;
+        }
+    }
+
+    /**
+     * 播放股市音效
+     */
+    private void playStockMarketSound() {
+        if (mMediaPlayer != null) {
+            mMediaPlayer.release();
+        }
+        mMediaPlayer = MediaPlayer.create(this, R.raw.stockmarket);
+        if (mMediaPlayer != null) {
+            mMediaPlayer.setOnCompletionListener(mp -> {
+                mp.release();
+                mMediaPlayer = null;
+            });
+            mMediaPlayer.start();
+        }
     }
 
     @Override

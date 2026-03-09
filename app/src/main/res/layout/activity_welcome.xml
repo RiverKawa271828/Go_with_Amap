@@ -4,14 +4,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <TextView
+    <WebView
+        android:id="@+id/webview_maxwell"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:text="🐱"
-        android:textSize="240sp"
-        android:gravity="center"
-        android:background="@color/backgroundLight"
-        android:contentDescription="@null" />
+        android:layerType="hardware"
+        android:background="@color/backgroundLight" />
 
     <Button
         android:id="@+id/startButton"

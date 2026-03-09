@@ -77,6 +77,9 @@
             android:name="com.river.gowithamap.service.ServiceGo"
             android:foregroundServiceType="location" />
 
+        <!-- 高德地图定位服务 -->
+        <service android:name="com.amap.api.location.APSService" />
+
         <!-- 高德地图 API Key -->
         <meta-data
             android:name="com.amap.api.v2.apikey"

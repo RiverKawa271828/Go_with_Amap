@@ -49,6 +49,10 @@
     <color name="md_surfaceContainer">#F0F0F0</color>
     <color name="md_surfaceContainerHigh">#EAEAEA</color>
     <color name="md_surfaceContainerHighest">#E0E0E0</color>
+
+    <!-- 深绿色（夜间模式专用，默认值与主色一致） -->
+    <color name="md_surfaceDarkGreen">@color/md_surface</color>
+    <color name="md_surfaceDarkGreenDark">@color/md_surface</color>
     
     <!-- 强调色 - 用于状态指示 -->
     <color name="md_success">#2E7D32</color>

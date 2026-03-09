@@ -22,14 +22,17 @@ android {
     namespace = 'com.river.gowithamap'
 
     signingConfigs {
-        // 检查是否存在自定义密钥
+        // 自定义签名配置 - 需要外部密钥文件
         custom {
-            storeFile getKeystoreFile()
-            storePassword getKeystorePassword()
-            keyAlias getKeyAlias()
-            keyPassword getKeyPassword()
-            v1SigningEnabled true
-            v2SigningEnabled true
+            def keystore = getKeystoreFile()
+            if (keystore?.exists()) {
+                storeFile = keystore
+                storePassword = getKeystorePassword() ?: 'River1234'
+                keyAlias = getKeyAlias() ?: 'riverkey'
+                keyPassword = getKeyPassword() ?: 'River1234'
+                v1SigningEnabled = true
+                v2SigningEnabled = true
+            }
         }
     }
 
@@ -37,8 +40,8 @@ android {
         applicationId "com.river.gowithamap"
         minSdkVersion 31
         targetSdkVersion 34
-        versionCode 2175
-        versionName '2.17.5' // https://semver.org/lang/zh-CN/
+        versionCode 2176
+        versionName '2.17.6' // https://semver.org/lang/zh-CN/
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += ['zh', 'zh-rCN', 'en', 'en-rUS']
         ndk {
@@ -69,7 +72,8 @@ android {
             // R8 configuration files.
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
-            signingConfig = signingConfigs.release
+            // 如果存在自定义密钥则使用，否则使用debug签名
+            signingConfig = getKeystoreFile()?.exists() ? signingConfigs.custom : signingConfigs.debug
             multiDexEnabled = true
         }
         debug {
@@ -148,6 +152,10 @@ dependencies {
     implementation 'com.google.zxing:core:3.5.2'
     implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
 
+    // Glide 图片加载和 GIF 支持
+    implementation 'com.github.bumptech.glide:glide:4.16.0'
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
+
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.3.0'
     androidTestImplementation 'androidx.test:runner:1.7.0'
@@ -156,24 +164,9 @@ dependencies {
     })
 }
 
-// 外部密钥目录路径（用于本地开发，避免将敏感文件提交到 Git）
-def getExternalKeyDir() {
-    return "/home/ri/work/Go_with_Amap_with_key"
-}
-
-// 从 local.properties 读取高德地图 API Key（优先从外部目录读取）
+// 从 local.properties 读取高德地图 API Key
 def getApiKey() {
     def properties = new Properties()
-    // 优先从外部目录读取
-    def externalProperties = new File(getExternalKeyDir(), "local.properties")
-    if (externalProperties.exists()) {
-        properties.load(externalProperties.newDataInputStream())
-        def apiKey = properties.getProperty("AMAP_API_KEY", "")
-        if (!apiKey.isEmpty()) {
-            return apiKey
-        }
-    }
-    // 后备：从项目目录读取
     def localProperties = rootProject.file("local.properties")
     if (localProperties.exists()) {
         properties.load(localProperties.newDataInputStream())
@@ -182,62 +175,53 @@ def getApiKey() {
     return ""
 }
 
-// 获取签名密钥文件（优先从外部目录读取）
+// 获取签名密钥文件
 def getKeystoreFile() {
-    def externalKeystore = new File(getExternalKeyDir(), "keystore/RiverKey.jks")
-    if (externalKeystore.exists()) {
-        return externalKeystore
-    }
-    // 后备：使用项目目录（向后兼容）
-    def projectKeystore = file('..\\keystore\\RiverKey.jks')
+    def projectKeystore = file('../keystore/RiverKey.jks')
     if (projectKeystore.exists()) {
         return projectKeystore
     }
-    // 如果没有自定义密钥，返回 null（将使用默认调试签名）
     return null
 }
 
 // 获取密钥库密码
 def getKeystorePassword() {
     def properties = new Properties()
-    def externalProperties = new File(getExternalKeyDir(), "local.properties")
-    if (externalProperties.exists()) {
-        properties.load(externalProperties.newDataInputStream())
+    def localProperties = rootProject.file("local.properties")
+    if (localProperties.exists()) {
+        properties.load(localProperties.newDataInputStream())
         def password = properties.getProperty("KEYSTORE_PASSWORD", "")
         if (!password.isEmpty()) {
             return password
         }
     }
-    // 默认密码（向后兼容）
     return 'River1234'
 }
 
 // 获取密钥别名
 def getKeyAlias() {
     def properties = new Properties()
-    def externalProperties = new File(getExternalKeyDir(), "local.properties")
-    if (externalProperties.exists()) {
-        properties.load(externalProperties.newDataInputStream())
+    def localProperties = rootProject.file("local.properties")
+    if (localProperties.exists()) {
+        properties.load(localProperties.newDataInputStream())
         def alias = properties.getProperty("KEY_ALIAS", "")
         if (!alias.isEmpty()) {
             return alias
         }
     }
-    // 默认别名（向后兼容）
     return 'riverkey'
 }
 
 // 获取密钥密码
 def getKeyPassword() {
     def properties = new Properties()
-    def externalProperties = new File(getExternalKeyDir(), "local.properties")
-    if (externalProperties.exists()) {
-        properties.load(externalProperties.newDataInputStream())
+    def localProperties = rootProject.file("local.properties")
+    if (localProperties.exists()) {
+        properties.load(localProperties.newDataInputStream())
         def password = properties.getProperty("KEY_PASSWORD", "")
         if (!password.isEmpty()) {
             return password
         }
     }
-    // 默认密码（向后兼容）
     return 'River1234'
 }
