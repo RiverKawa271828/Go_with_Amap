@@ -225,13 +225,18 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private static final int CIRCLE_STATE_NORMAL = 0;      // 正常状态（黄色）
     private static final int CIRCLE_STATE_SELECTED = 1;    // 选中状态（蓝色）
     private static final int CIRCLE_STATE_PINNED = 2;      // 固定状态（深蓝色）
-    
-    // 当前选中的圆
+
+    // 当前选中的圆（临时圆）
     private Circle mSelectedCircle = null;
     private int mSelectedCircleIndex = -1;
     private LatLng mSelectedCircleCenter = null;
     private double mSelectedCircleRadius = 0;
-    
+    private boolean mIsSelectedCirclePinned = false;  // 标记当前选中的圆是否已固定
+
+    // 临时圆时间戳（用于管理临时区域，类似临时坐标）
+    private static long sTempCircleTimestamp = 0;
+    private long mSelectedCircleTimestamp = 0;
+
     // 固定圆管理
     private List<Circle> mPinnedCircles = new ArrayList<>();
     private List<Marker> mPinnedCircleMarkers = new ArrayList<>();
@@ -241,7 +246,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     // 当前坐标点（未固定）
     private Marker mCurrentLocationMarker = null;
     private boolean mIsCurrentLocationPinned = false;
-    
+    // 临时坐标创建时间戳（用于比较哪个临时坐标先创建）
+    private static long sTempMarkerTimestamp = 0;
+    private long mCurrentLocationMarkerTimestamp = 0;
+
     // 固定坐标点管理
     private List<Marker> mPinnedLocationMarkers = new ArrayList<>();
     private List<Map<String, Object>> mPinnedLocationData = new ArrayList<>();
@@ -390,11 +398,63 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         }
         mMapView.onDestroy();
 
+        // 清除临时坐标（临时坐标在应用关闭后应清除）
+        clearTempLocation();
+
         //close db
         mLocationHistoryDB.close();
         mSearchHistoryDB.close();
+        if (mPinnedLocationsDB != null) {
+            mPinnedLocationsDB.close();
+        }
+        if (mFavoriteRegionsDB != null) {
+            mFavoriteRegionsDB.close();
+        }
+        if (mPinnedCirclesDB != null) {
+            mPinnedCirclesDB.close();
+        }
+        if (mFavoritesDB != null) {
+            mFavoritesDB.close();
+        }
 
         super.onDestroy();
+    }
+
+    /**
+     * 清除临时坐标和临时圆（应用关闭时调用）
+     * 临时坐标/圆在应用关闭后应清除，固定坐标/圆不受影响
+     */
+    private void clearTempLocation() {
+        XLog.i("清除临时坐标和临时圆");
+        // 移除临时标记
+        if (sTempMarker != null) {
+            sTempMarker.remove();
+            sTempMarker = null;
+        }
+        if (mCurrentLocationMarker != null && !mIsCurrentLocationPinned) {
+            mCurrentLocationMarker.remove();
+        }
+        mCurrentLocationMarker = null;
+        mIsCurrentLocationPinned = false;
+        mMarkLatLngMap = null;
+        // 清除坐标时间戳
+        sTempMarkerTimestamp = 0;
+        mCurrentLocationMarkerTimestamp = 0;
+
+        // 清除临时圆（未固定的选中圆）
+        if (mSelectedCircle != null && !mIsSelectedCirclePinned) {
+            // 恢复圆为普通状态
+            mSelectedCircle.setStrokeColor(0xFFCCCC00);
+            mSelectedCircle.setFillColor(0x55FFFF00);
+        }
+        mSelectedCircle = null;
+        mSelectedCircleIndex = -1;
+        mSelectedCircleCenter = null;
+        mSelectedCircleRadius = 0;
+        mIsSelectedCirclePinned = false;
+        // 清除圆时间戳
+        sTempCircleTimestamp = 0;
+        mSelectedCircleTimestamp = 0;
     }
 
     @Override
@@ -606,6 +666,13 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             XLog.i("地图缓存已启用");
         }
         mAMap.setMyLocationEnabled(true);
+
+        // 设置Marker点击监听器（全局设置，确保固定点和临时点都能响应点击）
+        mAMap.setOnMarkerClickListener(marker -> {
+            showMarkerInfoAndMenu(marker);
+            return true;
+        });
+
         mAMap.setOnMapClickListener(new AMap.OnMapClickListener() {
             /**
              * 单击地图
@@ -977,14 +1044,15 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             XLog.i("markMap开始 - mCurrentLocationMarker: " + (mCurrentLocationMarker != null ? "存在" : "null") +
                     ", sTempMarker: " + (sTempMarker != null ? "存在" : "null"));
 
-            // 删除旧临时标记（优先使用静态变量，其次使用成员变量）
+            // 删除旧临时标记（临时坐标同时只能存在一个）
+            // 优先使用静态变量，其次使用成员变量
             Marker markerToRemove = null;
             if (sTempMarker != null) {
                 markerToRemove = sTempMarker;
-                XLog.i("将删除静态变量中的旧标记");
+                XLog.i("将删除静态变量中的旧临时标记");
             } else if (mCurrentLocationMarker != null && !mIsCurrentLocationPinned) {
                 markerToRemove = mCurrentLocationMarker;
-                XLog.i("将删除成员变量中的旧标记");
+                XLog.i("将删除成员变量中的旧临时标记");
             }
 
             if (markerToRemove != null) {
@@ -992,7 +1060,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 XLog.i("已删除旧临时标记");
             }
 
-            // 创建新标记
+            // 创建新临时标记
             MarkerOptions markerOptions = new MarkerOptions()
                     .position(mMarkLatLngMap)
                     .icon(mMapIndicator)
@@ -1000,19 +1068,19 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     .snippet(String.format("%.6f, %.6f", mMarkLatLngMap.longitude, mMarkLatLngMap.latitude));
 
             Marker newMarker = mAMap.addMarker(markerOptions);
+            newMarker.setObject("temp_location"); // 设置tag为临时标记
+
+            // 记录创建时间戳
+            long timestamp = System.currentTimeMillis();
+            mCurrentLocationMarkerTimestamp = timestamp;
+            sTempMarkerTimestamp = timestamp;
 
             // 同时更新成员变量和静态变量
             mCurrentLocationMarker = newMarker;
             sTempMarker = newMarker;
             mIsCurrentLocationPinned = false;
 
-            XLog.i("创建新临时标记: " + mMarkLatLngMap.toString());
-
-            // 添加Marker点击监听
-            mAMap.setOnMarkerClickListener(marker -> {
-                showMarkerInfoAndMenu(marker);
-                return true;
-            });
+            XLog.i("创建新临时标记: " + mMarkLatLngMap.toString() + ", 时间戳: " + timestamp);
         }
     }
 
@@ -1076,18 +1144,34 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             if (!gcj02Longitude.isEmpty() && !gcj02Latitude.isEmpty()) {
                 mMarkName = name;
                 mMarkLatLngMap = new LatLng(Double.parseDouble(gcj02Latitude), Double.parseDouble(gcj02Longitude));
-                MarkerOptions markerOptions = new MarkerOptions().position(mMarkLatLngMap).icon(mMapIndicator);
-                // 静态方法中直接clear地图，调用处需要额外处理列表清理
-                mAMap.clear();
+
+                // 清除之前的临时标记（不清除固定标记）
+                if (sTempMarker != null) {
+                    sTempMarker.remove();
+                }
+
+                MarkerOptions markerOptions = new MarkerOptions()
+                        .position(mMarkLatLngMap)
+                        .icon(mMapIndicator)
+                        .title(mMarkName != null ? mMarkName : "位置")
+                        .snippet(String.format("%.6f, %.6f", mMarkLatLngMap.longitude, mMarkLatLngMap.latitude));
+
                 Marker marker = mAMap.addMarker(markerOptions);
+                marker.setObject("temp_location"); // 设置为临时标记
+
+                // 记录创建时间戳
+                long timestamp = System.currentTimeMillis();
+                sTempMarkerTimestamp = timestamp;
+
                 // 更新临时标记引用
                 sTempMarker = marker;
+
                 CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLng(mMarkLatLngMap);
                 mAMap.moveCamera(cameraUpdate);
             }
         } catch (Exception e) {
             ret = false;
-            XLog.e("ERROR: showHistoryLocation");
+            XLog.e("ERROR: showHistoryLocation: " + e.getMessage());
         }
 
         return ret;
@@ -1255,6 +1339,9 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             // 收藏
             DataBaseFavorites dbFavorites = new DataBaseFavorites(getApplicationContext());
             mFavoritesDB = dbFavorites.getWritableDatabase();
+            // 固定坐标点
+            DataBasePinnedLocations dbPinnedLocations = new DataBasePinnedLocations(getApplicationContext());
+            mPinnedLocationsDB = dbPinnedLocations.getWritableDatabase();
         } catch (Exception e) {
             XLog.e("ERROR: sqlite init error");
         }
@@ -1268,15 +1355,73 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             // 区域收藏数据库
             DataBaseFavoriteRegions dbRegions = new DataBaseFavoriteRegions(getApplicationContext());
             mFavoriteRegionsDB = dbRegions.getWritableDatabase();
-            
+
             // 固定圆数据库
             DataBasePinnedCircles dbPinned = new DataBasePinnedCircles(getApplicationContext());
             mPinnedCirclesDB = dbPinned.getWritableDatabase();
-            
+
             // 加载已固定的圆
             loadPinnedCircles();
+
+            // 加载已固定的坐标点
+            loadPinnedLocations();
         } catch (Exception e) {
             XLog.e("ERROR: circle databases init error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 从数据库加载固定坐标点并显示在地图上
+     */
+    private void loadPinnedLocations() {
+        try {
+            List<Map<String, Object>> pinnedLocations = DataBasePinnedLocations.getAllPinnedLocations(mPinnedLocationsDB);
+            XLog.i("加载固定坐标点: 共 " + pinnedLocations.size() + " 个");
+
+            for (Map<String, Object> data : pinnedLocations) {
+                String name = (String) data.get(DataBasePinnedLocations.DB_COLUMN_NAME);
+                double lat = Double.parseDouble((String) data.get(DataBasePinnedLocations.DB_COLUMN_LATITUDE));
+                double lon = Double.parseDouble((String) data.get(DataBasePinnedLocations.DB_COLUMN_LONGITUDE));
+
+                // 创建固定标记（不移动相机，避免多个标记时相机乱跳）
+                createPinnedLocationMarker(name, lat, lon, false);
+            }
+        } catch (Exception e) {
+            XLog.e("加载固定坐标点失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 创建固定坐标点标记（用于加载时）
+     * @param moveCamera 是否移动相机到该位置
+     */
+    private void createPinnedLocationMarker(String name, double lat, double lon, boolean moveCamera) {
+        LatLng position = new LatLng(lat, lon);
+
+        MarkerOptions markerOptions = new MarkerOptions()
+                .position(position)
+                .icon(createPinnedMarkerIcon(name))
+                .anchor(0.5f, 1.0f)
+                .draggable(false)
+                .title("已固定:" + name)
+                .snippet(String.format("%.6f, %.6f", lon, lat));
+
+        Marker marker = mAMap.addMarker(markerOptions);
+        marker.setObject("pinned_location"); // 设置为固定标记tag
+
+        // 添加到固定标记列表
+        Map<String, Object> data = new HashMap<>();
+        data.put("name", name);
+        data.put("lat", lat);
+        data.put("lon", lon);
+        data.put("marker", marker);
+
+        mPinnedLocationMarkers.add(marker);
+        mPinnedLocationData.add(data);
+
+        // 如果需要，移动相机到该位置
+        if (moveCamera) {
+            mAMap.animateCamera(CameraUpdateFactory.newLatLngZoom(position, 16));
         }
     }
 
@@ -2260,21 +2405,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
      * 根据半径计算合适的缩放级别
      */
     private float calculateZoomLevel(double radiusM) {
-        // 根据半径估算合适的缩放级别
-        // 半径越大，缩放级别越小
-        if (radiusM < 100) {
-            return 18f; // 显示100米范围
-        } else if (radiusM < 500) {
-            return 16f; // 显示500米范围
-        } else if (radiusM < 1000) {
-            return 15f; // 显示1公里范围
-        } else if (radiusM < 5000) {
-            return 13f; // 显示5公里范围
-        } else if (radiusM < 10000) {
-            return 12f; // 显示10公里范围
-        } else {
-            return 10f; // 显示更大范围
-        }
+        return calculateZoomLevelStatic(radiusM);
     }
     
     /**
@@ -2685,11 +2816,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     }
 
     /**
-     * 清除所有地图覆盖物（包括多点定位圆和固定圆）
-     * 注意：不清除当前临时标记 mCurrentLocationMarker
+     * 清除所有临时地图覆盖物
+     * 注意：不清除固定点、固定区域和当前临时标记
      */
     private void clearAllMapOverlays() {
-        // 清除多点定位相关
+        // 清除多点定位相关（临时圆）
         for (Circle circle : mMultiPointCircles) {
             if (circle != null) {
                 circle.remove();
@@ -2699,16 +2830,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         mMultiPointCenters.clear();
         mMultiPointRadius.clear();
 
-        // 清除固定圆相关
-        for (Circle circle : mPinnedCircles) {
-            if (circle != null) {
-                circle.remove();
-            }
-        }
-        mPinnedCircles.clear();
-        mPinnedCircleData.clear();
-
-        // 清除圆标记
+        // 清除圆标记（临时圆标记）
         for (Marker marker : mMultiPointMarkers) {
             if (marker != null) {
                 marker.remove();
@@ -2716,21 +2838,8 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         }
         mMultiPointMarkers.clear();
 
-        for (Marker marker : mPinnedCircleMarkers) {
-            if (marker != null) {
-                marker.remove();
-            }
-        }
-        mPinnedCircleMarkers.clear();
-
-        // 清除固定位置标记
-        for (Marker marker : mPinnedLocationMarkers) {
-            if (marker != null) {
-                marker.remove();
-            }
-        }
-        mPinnedLocationMarkers.clear();
-        mPinnedLocationData.clear();
+        // 注意：不清除固定圆和固定位置标记
+        // 固定内容应该一直显示在地图上，除非用户主动取消固定
 
         // 清除当前临时标记
         if (mCurrentLocationMarker != null) {
@@ -2748,7 +2857,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
 
         clearIntersectionMarks();
 
-        XLog.i("所有地图覆盖物已清除");
+        XLog.i("临时地图覆盖物已清除（固定点和固定区域保留）");
     }
 
     /**
@@ -3506,14 +3615,50 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             .strokeWidth(3));
         
         mPinnedCircles.add(circle);
-        
-        // 深蓝色圆心标记
-        BitmapDescriptor darkBlueDot = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE);
+
+        // 创建自定义圆心标记（显示名称）
+        LinearLayout markerView = new LinearLayout(this);
+        markerView.setOrientation(LinearLayout.VERTICAL);
+        markerView.setGravity(Gravity.CENTER);
+
+        // 名称文本（上方）
+        TextView nameView = new TextView(this);
+        nameView.setText(name);
+        nameView.setTextSize(12);
+        nameView.setTextColor(Color.WHITE);
+        nameView.setBackgroundColor(0xAA000080); // 深蓝色半透明背景
+        nameView.setPadding(10, 5, 10, 5);
+        nameView.setGravity(Gravity.CENTER);
+        markerView.addView(nameView);
+
+        // 半径文本（下方）
+        TextView radiusView = new TextView(this);
+        double radiusKm = radius / 1000.0;
+        radiusView.setText(String.format("%.2f km", radiusKm));
+        radiusView.setTextSize(10);
+        radiusView.setTextColor(Color.WHITE);
+        radiusView.setBackgroundColor(0xAA000080);
+        radiusView.setPadding(8, 2, 8, 2);
+        radiusView.setGravity(Gravity.CENTER);
+        markerView.addView(radiusView);
+
+        // 转换为BitmapDescriptor
+        markerView.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                          View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        markerView.layout(0, 0, markerView.getMeasuredWidth(), markerView.getMeasuredHeight());
+
+        Bitmap bitmap = Bitmap.createBitmap(markerView.getMeasuredWidth(), markerView.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        markerView.draw(canvas);
+
+        BitmapDescriptor customIcon = BitmapDescriptorFactory.fromBitmap(bitmap);
+
         Marker marker = mAMap.addMarker(new MarkerOptions()
             .position(center)
             .title(name)
             .snippet("半径: " + String.format("%.0f", radius) + "米 [已固定]")
-            .icon(darkBlueDot));
+            .icon(customIcon)
+            .anchor(0.5f, 0.5f));
         mPinnedCircleMarkers.add(marker);
         
         // 保存数据
@@ -3671,26 +3816,32 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
      * @param index 圆在列表中的索引
      */
     private void selectCircle(Circle circle, int index) {
-        // 恢复之前选中圆的状态
+        // 恢复之前选中圆的状态（如果它还是临时圆且未固定）
         if (mSelectedCircle != null && mSelectedCircleIndex >= 0 && mSelectedCircleIndex < mMultiPointCircles.size()) {
             mSelectedCircle.setStrokeColor(0xFFCCCC00); // 恢复黄色边框
             mSelectedCircle.setFillColor(0x55FFFF00); // 恢复黄色填充
         }
-        
+
         // 选中新的圆
         mSelectedCircle = circle;
         mSelectedCircleIndex = index;
         mSelectedCircleCenter = mMultiPointCenters.get(index);
         mSelectedCircleRadius = mMultiPointRadius.get(index);
-        
+        mIsSelectedCirclePinned = false;  // 标记为未固定的临时圆
+
+        // 记录时间戳（作为当前临时圆）
+        long timestamp = System.currentTimeMillis();
+        mSelectedCircleTimestamp = timestamp;
+        sTempCircleTimestamp = timestamp;
+
         // 设置选中状态（蓝色）
         circle.setStrokeColor(0xFF0000FF); // 蓝色边框
         circle.setFillColor(0x550000FF); // 蓝色填充
-        
+
         // 显示操作菜单
         showCircleActionMenu();
-        
-        XLog.i("选中圆 #" + index + ", 半径: " + mSelectedCircleRadius + "米");
+
+        XLog.i("选中圆 #" + index + ", 半径: " + mSelectedCircleRadius + "米, 时间戳: " + timestamp);
     }
     
     /**
@@ -3959,11 +4110,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
      */
     private void pinSelectedCircle() {
         if (mSelectedCircle == null) return;
-        
+
         // 显示输入名称对话框
         EditText etName = new EditText(this);
         etName.setHint("输入固定圆名称");
-        
+
         new AlertDialog.Builder(this)
             .setTitle("固定圆")
             .setView(etName)
@@ -3972,7 +4123,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 if (name.isEmpty()) {
                     name = "固定圆" + System.currentTimeMillis();
                 }
-                
+
                 // 保存到数据库
                 ContentValues contentValues = new ContentValues();
                 contentValues.put(DataBasePinnedCircles.DB_COLUMN_NAME, name);
@@ -3980,12 +4131,12 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 contentValues.put(DataBasePinnedCircles.DB_COLUMN_CENTER_LON, String.valueOf(mSelectedCircleCenter.longitude));
                 contentValues.put(DataBasePinnedCircles.DB_COLUMN_RADIUS, String.valueOf(mSelectedCircleRadius));
                 contentValues.put(DataBasePinnedCircles.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
-                
+
                 DataBasePinnedCircles.savePinnedCircle(mPinnedCirclesDB, contentValues);
-                
+
                 // 绘制固定圆
                 drawPinnedCircle(name, mSelectedCircleCenter.latitude, mSelectedCircleCenter.longitude, mSelectedCircleRadius);
-                
+
                 // 从多点定位列表中移除（因为已经固定）
                 if (mSelectedCircleIndex >= 0 && mSelectedCircleIndex < mMultiPointCircles.size()) {
                     mMultiPointCircles.remove(mSelectedCircleIndex);
@@ -3996,13 +4147,18 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                         mMultiPointMarkers.remove(mSelectedCircleIndex);
                     }
                 }
-                
+
+                // 清除临时圆状态和时间戳（该圆已固定，不再是临时圆）
+                sTempCircleTimestamp = 0;
+                mSelectedCircleTimestamp = 0;
+
                 // 清除选中状态
                 mSelectedCircle = null;
                 mSelectedCircleIndex = -1;
                 mSelectedCircleCenter = null;
                 mSelectedCircleRadius = 0;
-                
+                mIsSelectedCirclePinned = false;
+
                 GoUtils.DisplayToast(this, "圆已固定: " + name);
                 XLog.i("固定圆: " + name);
             })
@@ -4032,36 +4188,39 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     }
     
     /**
-     * 显示固定圆操作菜单（收藏、分享、取消固定）
+     * 显示固定圆操作菜单（修改名称、收藏、分享、取消固定）
      * UI风格与坐标操作一致
      * @param index 固定圆在列表中的索引
      */
     private void showPinnedCircleActionMenu(int index) {
         if (index < 0 || index >= mPinnedCircles.size()) return;
-        
+
         Map<String, Object> data = mPinnedCircleData.get(index);
         String name = (String) data.get("name");
         double lat = (double) data.get("lat");
         double lon = (double) data.get("lon");
         double radius = (double) data.get("radius");
-        
-        String[] options = {"收藏", "分享", "取消固定"};
+
+        String[] options = {"修改名称", "收藏", "分享", "取消固定"};
         // 显示格式：中心：经度 纬度
         String coordText = String.format("区域: %s\n中心：%.6f %.6f\n半径: %.0f米", name, lon, lat, radius);
-        
+
         AlertDialog menuDialog = new AlertDialog.Builder(this)
             .setTitle(coordText)
             .setItems(options, (dialog, which) -> {
                 // 先关闭菜单对话框
                 dialog.dismiss();
                 switch (which) {
-                    case 0: // 收藏
+                    case 0: // 修改名称
+                        renamePinnedCircle(index);
+                        break;
+                    case 1: // 收藏
                         favoritePinnedCircle(name, lat, lon, radius);
                         break;
-                    case 1: // 分享
+                    case 2: // 分享
                         sharePinnedCircle(name, lat, lon, radius);
                         break;
-                    case 2: // 取消固定
+                    case 3: // 取消固定
                         unpinCircle(index);
                         break;
                 }
@@ -4161,16 +4320,18 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
      */
     private void unpinCircle(int index) {
         if (index < 0 || index >= mPinnedCircles.size()) return;
-        
+
         Map<String, Object> data = mPinnedCircleData.get(index);
         String name = (String) data.get("name");
-        
+        double lat = (double) data.get("lat");
+        double lon = (double) data.get("lon");
+        double radius = (double) data.get("radius");
+
         new AlertDialog.Builder(this)
             .setTitle("取消固定")
             .setMessage("确定要取消固定 '" + name + "' 吗？")
             .setPositiveButton("确定", (dialog, which) -> {
                 // 从数据库删除
-                // 需要从数据库中找到对应的记录
                 java.util.List<Map<String, Object>> allPinned = DataBasePinnedCircles.getAllPinnedCircles(mPinnedCirclesDB);
                 for (Map<String, Object> pinned : allPinned) {
                     String pinnedName = (String) pinned.get(DataBasePinnedCircles.DB_COLUMN_NAME);
@@ -4180,21 +4341,117 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                         break;
                     }
                 }
-                
-                // 从地图上移除
-                mPinnedCircles.get(index).remove();
+
+                // 从固定列表移除（但保留在地图上作为临时圆）
+                Circle circle = mPinnedCircles.get(index);
+                Marker marker = mPinnedCircleMarkers.get(index);
+
+                // 从固定列表移除
                 mPinnedCircles.remove(index);
-                mPinnedCircleMarkers.get(index).remove();
                 mPinnedCircleMarkers.remove(index);
                 mPinnedCircleData.remove(index);
-                
+
+                // 将圆变回临时圆状态（黄色）
+                circle.setStrokeColor(0xFFCCCC00); // 黄色边框
+                circle.setFillColor(0x55FFFF00); // 黄色填充
+
+                // 将圆添加到多点定位列表（作为临时圆管理）
+                LatLng center = new LatLng(lat, lon);
+                mMultiPointCircles.add(circle);
+                mMultiPointCenters.add(center);
+                mMultiPointRadius.add(radius);
+                mMultiPointMarkers.add(marker);
+
+                // 分配新的时间戳给这个取消固定的圆（作为新的临时圆）
+                long newTimestamp = System.currentTimeMillis();
+
+                // 检查是否存在其他临时圆，如果存在则比较时间戳，清除较早的
+                if (mSelectedCircle != null && !mIsSelectedCirclePinned && sTempCircleTimestamp > 0) {
+                    // 存在其他临时圆，比较时间戳
+                    // 新取消固定的圆使用当前时间戳，总是比已存在的临时圆新
+                    // 所以清除已存在的临时圆（它的时间戳较小）
+                    // 恢复之前临时圆的状态为普通黄色
+                    mSelectedCircle.setStrokeColor(0xFFCCCC00);
+                    mSelectedCircle.setFillColor(0x55FFFF00);
+                    XLog.i("取消固定圆：已存在的临时圆时间戳 " + sTempCircleTimestamp + " < 新临时圆时间戳 " + newTimestamp + "，清除已存在的");
+                }
+
+                // 设置当前选中的圆为这个取消固定的圆
+                mSelectedCircle = circle;
+                mSelectedCircleIndex = mMultiPointCircles.size() - 1;
+                mSelectedCircleCenter = center;
+                mSelectedCircleRadius = radius;
+                mIsSelectedCirclePinned = false;
+                mSelectedCircleTimestamp = newTimestamp;
+                sTempCircleTimestamp = newTimestamp;
+
+                // 更新标记为未固定状态
+                marker.setTitle(name);
+                marker.setSnippet("半径: " + String.format("%.0f", radius) + "米");
+
                 GoUtils.DisplayToast(this, "已取消固定: " + name);
-                XLog.i("取消固定圆: " + name);
+                XLog.i("取消固定圆: " + name + ", 变为临时圆, 时间戳: " + newTimestamp);
             })
             .setNegativeButton("取消", null)
             .show();
     }
-    
+
+    /**
+     * 重命名固定圆
+     */
+    private void renamePinnedCircle(int index) {
+        if (index < 0 || index >= mPinnedCircleData.size()) return;
+
+        Map<String, Object> data = mPinnedCircleData.get(index);
+        String oldName = (String) data.get("name");
+        double lat = (double) data.get("lat");
+        double lon = (double) data.get("lon");
+        double radius = (double) data.get("radius");
+        Circle circle = mPinnedCircles.get(index);
+        Marker marker = mPinnedCircleMarkers.get(index);
+
+        // 显示输入对话框
+        EditText etName = new EditText(this);
+        etName.setText(oldName);
+        etName.selectAll();
+
+        new AlertDialog.Builder(this)
+            .setTitle("修改区域名称")
+            .setView(etName)
+            .setPositiveButton("确定", (dialog, which) -> {
+                String newName = etName.getText().toString().trim();
+                if (newName.isEmpty()) {
+                    GoUtils.DisplayToast(this, "名称不能为空");
+                    return;
+                }
+                if (newName.equals(oldName)) {
+                    return; // 名称未改变
+                }
+
+                // 从数据库中找到对应记录并更新
+                java.util.List<Map<String, Object>> allPinned = DataBasePinnedCircles.getAllPinnedCircles(mPinnedCirclesDB);
+                for (Map<String, Object> pinned : allPinned) {
+                    String pinnedName = (String) pinned.get(DataBasePinnedCircles.DB_COLUMN_NAME);
+                    if (pinnedName.equals(oldName)) {
+                        String id = (String) pinned.get(DataBasePinnedCircles.DB_COLUMN_ID);
+                        DataBasePinnedCircles.updatePinnedCircleName(mPinnedCirclesDB, id, newName);
+                        break;
+                    }
+                }
+
+                // 更新数据
+                data.put("name", newName);
+                // 更新标记
+                marker.setTitle(newName);
+                marker.setSnippet("半径: " + String.format("%.0f", radius) + "米 [已固定]");
+
+                GoUtils.DisplayToast(this, "已修改区域名称为: " + newName);
+                XLog.i("固定圆重命名: " + oldName + " -> " + newName);
+            })
+            .setNegativeButton("取消", null)
+            .show();
+    }
+
     /**
      * 设置地图点击监听，用于检测圆的点击
      * 已整合到 initMap 方法中
@@ -4374,7 +4631,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     }
 
     /**
-     * 显示固定位置的操作菜单（收藏、分享、取消固定）
+     * 显示固定位置的操作菜单（修改名称、收藏、分享、取消固定）
      */
     private void showPinnedLocationActionMenu(int index) {
         if (index < 0 || index >= mPinnedLocationData.size()) return;
@@ -4384,7 +4641,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         double lat = (double) data.get("lat");
         double lon = (double) data.get("lon");
 
-        String[] options = {"收藏", "分享", "取消固定"};
+        String[] options = {"修改名称", "收藏", "分享", "取消固定"};
         String coordText = String.format("已固定: %s\n%.6f, %.6f", name, lon, lat);
 
         AlertDialog menuDialog = new AlertDialog.Builder(this)
@@ -4393,13 +4650,16 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 // 先关闭菜单对话框
                 dialog.dismiss();
                 switch (which) {
-                    case 0: // 收藏
+                    case 0: // 修改名称
+                        renamePinnedLocation(index);
+                        break;
+                    case 1: // 收藏
                         addPinnedLocationToFavorite(name, lat, lon);
                         break;
-                    case 1: // 分享
+                    case 2: // 分享
                         shareLocation(name, lon, lat);
                         break;
-                    case 2: // 取消固定
+                    case 3: // 取消固定
                         unpinLocation(index);
                         break;
                 }
@@ -4443,15 +4703,88 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 mPinnedLocationMarkers.remove(index);
                 mPinnedLocationData.remove(index);
 
-                // 设置为当前未固定标记
+                // 分配新的时间戳给这个取消固定的坐标（作为新的临时坐标）
+                long newTimestamp = System.currentTimeMillis();
+
+                // 检查是否存在其他临时坐标，如果存在则比较时间戳，清除较早的
+                if (sTempMarker != null && sTempMarker != marker && sTempMarkerTimestamp > 0) {
+                    // 存在其他临时坐标，比较时间戳
+                    // 新取消固定的坐标使用当前时间戳，总是比已存在的临时坐标新
+                    // 所以清除已存在的临时坐标（它的时间戳较小）
+                    sTempMarker.remove();
+                    XLog.i("取消固定：已存在的临时坐标时间戳 " + sTempMarkerTimestamp + " < 新临时坐标时间戳 " + newTimestamp + "，清除已存在的");
+                }
+                if (mCurrentLocationMarker != null && mCurrentLocationMarker != marker && !mIsCurrentLocationPinned) {
+                    mCurrentLocationMarker.remove();
+                }
+
+                // 设置为当前未固定标记（成为新的临时坐标，使用新的时间戳）
                 mCurrentLocationMarker = marker;
                 sTempMarker = marker; // 更新静态变量
+                mCurrentLocationMarkerTimestamp = newTimestamp;
+                sTempMarkerTimestamp = newTimestamp;
                 mIsCurrentLocationPinned = false;
                 mMarkLatLngMap = marker.getPosition();
                 mMarkName = name;
 
                 GoUtils.DisplayToast(this, "已取消固定: " + name);
-                XLog.i("取消固定位置: " + name);
+                XLog.i("取消固定位置: " + name + ", 新临时坐标时间戳: " + newTimestamp);
+            })
+            .setNegativeButton("取消", null)
+            .show();
+    }
+
+    /**
+     * 重命名固定位置
+     */
+    private void renamePinnedLocation(int index) {
+        if (index < 0 || index >= mPinnedLocationData.size()) return;
+
+        Map<String, Object> data = mPinnedLocationData.get(index);
+        String oldName = (String) data.get("name");
+        double lat = (double) data.get("lat");
+        double lon = (double) data.get("lon");
+        Marker marker = mPinnedLocationMarkers.get(index);
+
+        // 显示输入对话框
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_add_favorite, null);
+        EditText etName = view.findViewById(R.id.et_favorite_name);
+        etName.setText(oldName);
+        etName.selectAll();
+
+        new AlertDialog.Builder(this)
+            .setTitle("修改名称")
+            .setView(view)
+            .setPositiveButton("确定", (dialog, which) -> {
+                String newName = etName.getText().toString().trim();
+                if (newName.isEmpty()) {
+                    GoUtils.DisplayToast(this, "名称不能为空");
+                    return;
+                }
+                if (newName.equals(oldName)) {
+                    return; // 名称未改变
+                }
+
+                // 从数据库中找到对应记录并更新
+                java.util.List<Map<String, Object>> allPinned = DataBasePinnedLocations.getAllPinnedLocations(mPinnedLocationsDB);
+                for (Map<String, Object> pinned : allPinned) {
+                    String pinnedName = (String) pinned.get(DataBasePinnedLocations.DB_COLUMN_NAME);
+                    if (pinnedName.equals(oldName)) {
+                        String id = (String) pinned.get(DataBasePinnedLocations.DB_COLUMN_ID);
+                        DataBasePinnedLocations.updatePinnedLocationName(mPinnedLocationsDB, id, newName);
+                        break;
+                    }
+                }
+
+                // 更新UI
+                // 更新数据
+                data.put("name", newName);
+                // 更新标记
+                marker.setIcon(createPinnedMarkerIcon(newName));
+                marker.setTitle("已固定:" + newName);
+
+                GoUtils.DisplayToast(this, "已修改名称为: " + newName);
+                XLog.i("固定位置重命名: " + oldName + " -> " + newName);
             })
             .setNegativeButton("取消", null)
             .show();
@@ -4615,19 +4948,9 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private void showPinnedLocationOnMap(String name, double lat, double lon) {
         LatLng position = new LatLng(lat, lon);
 
-        // 创建带文字的Marker图标
-        View markerView = LayoutInflater.from(this).inflate(R.layout.marker_with_text, null);
-        TextView tvText = markerView.findViewById(R.id.marker_text);
-        tvText.setText(name);
-        tvText.setTextColor(Color.WHITE);
-        tvText.setBackgroundResource(R.drawable.bg_marker_pinned);
-
-        BitmapDescriptor bitmapDescriptor = BitmapDescriptorFactory.fromBitmap(
-                createBitmapFromView(markerView));
-
         MarkerOptions markerOptions = new MarkerOptions()
                 .position(position)
-                .icon(bitmapDescriptor)
+                .icon(createPinnedMarkerIcon(name))
                 .anchor(0.5f, 1.0f)
                 .draggable(false)
                 .title("已固定:" + name)
@@ -4663,6 +4986,18 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     }
 
     /**
+     * 创建固定标记的图标
+     */
+    private BitmapDescriptor createPinnedMarkerIcon(String name) {
+        View markerView = LayoutInflater.from(this).inflate(R.layout.marker_with_text, null);
+        TextView tvText = markerView.findViewById(R.id.marker_text);
+        tvText.setText(name);
+        tvText.setTextColor(Color.WHITE);
+        tvText.setBackgroundResource(R.drawable.bg_marker_pinned);
+        return BitmapDescriptorFactory.fromBitmap(createBitmapFromView(markerView));
+    }
+
+    /**
      * 固定当前标记点
      */
     private void pinCurrentMarker() {
@@ -4693,16 +5028,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 // 将当前标记转换为固定标记
                 if (mCurrentLocationMarker != null) {
                     // 更新标记为固定样式
-                    View markerView = LayoutInflater.from(this).inflate(R.layout.marker_with_text, null);
-                    TextView tvText = markerView.findViewById(R.id.marker_text);
-                    tvText.setText(name);
-                    tvText.setTextColor(Color.WHITE);
-                    tvText.setBackgroundResource(R.drawable.bg_marker_pinned);
-
-                    BitmapDescriptor bitmapDescriptor = BitmapDescriptorFactory.fromBitmap(
-                            createBitmapFromView(markerView));
-
-                    mCurrentLocationMarker.setIcon(bitmapDescriptor);
+                    mCurrentLocationMarker.setIcon(createPinnedMarkerIcon(name));
                     // 设置title为"已固定:xx地点"，snippet为经纬度（经度 纬度）
                     mCurrentLocationMarker.setTitle("已固定:" + name);
                     mCurrentLocationMarker.setSnippet(String.format("%.6f %.6f", mMarkLatLngMap.longitude, mMarkLatLngMap.latitude));

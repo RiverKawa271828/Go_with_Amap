@@ -109,4 +109,18 @@ public class DataBasePinnedLocations extends SQLiteOpenHelper {
             XLog.e("清除固定坐标点失败: " + e.getMessage());
         }
     }
+
+    /**
+     * 更新固定坐标点名称
+     */
+    public static void updatePinnedLocationName(SQLiteDatabase db, String id, String newName) {
+        try {
+            ContentValues values = new ContentValues();
+            values.put(DB_COLUMN_NAME, newName);
+            db.update(TABLE_NAME, values, DB_COLUMN_ID + " = ?", new String[]{id});
+            XLog.i("固定坐标点名称更新成功: " + newName);
+        } catch (Exception e) {
+            XLog.e("更新固定坐标点名称失败: " + e.getMessage());
+        }
+    }
 }

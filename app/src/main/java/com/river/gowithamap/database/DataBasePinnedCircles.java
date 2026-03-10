@@ -165,4 +165,21 @@ public class DataBasePinnedCircles extends SQLiteOpenHelper {
             XLog.e("DATABASE: 清空固定圆错误: " + e.getMessage());
         }
     }
+
+    /**
+     * 更新固定圆名称
+     * @param sqLiteDatabase 数据库
+     * @param id 圆ID
+     * @param newName 新名称
+     */
+    public static void updatePinnedCircleName(SQLiteDatabase sqLiteDatabase, String id, String newName) {
+        try {
+            ContentValues values = new ContentValues();
+            values.put(DB_COLUMN_NAME, newName);
+            sqLiteDatabase.update(TABLE_NAME, values, DB_COLUMN_ID + " = ?", new String[]{id});
+            XLog.i("固定圆名称更新成功: " + newName);
+        } catch (Exception e) {
+            XLog.e("DATABASE: 更新固定圆名称错误: " + e.getMessage());
+        }
+    }
 }
