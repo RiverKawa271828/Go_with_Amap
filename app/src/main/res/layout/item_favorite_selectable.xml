@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_marginHorizontal="@dimen/spacing_xs"
+    android:layout_marginVertical="@dimen/spacing_xs"
+    app:cardCornerRadius="@dimen/radius_md"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@color/md_surfaceContainerLowest"
+    app:strokeWidth="1dp"
+    app:strokeColor="@color/md_outlineVariant">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- 左侧内容区域 - 点击在地图上显示 -->
+        <LinearLayout
+            android:id="@+id/item_content"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:padding="@dimen/spacing_md"
+            android:background="?android:attr/selectableItemBackground">
+
+            <!-- 地点名称 - 允许多行显示 -->
+            <TextView
+                android:id="@+id/tv_location_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/text_body"
+                android:textColor="@color/textPrimary"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="3"
+                android:ellipsize="end"
+                android:lineSpacingMultiplier="1.1"
+                tools:text="这是一个很长的地点名称，可能会超过一行显示，现在允许自动换行" />
+
+            <!-- 坐标 - 小字显示在下方 -->
+            <TextView
+                android:id="@+id/tv_coordinates"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_xs"
+                android:textSize="@dimen/text_caption"
+                android:textColor="@color/textTertiary"
+                android:ellipsize="end"
+                android:maxLines="1"
+                tools:text="117.123456, 36.123456" />
+
+        </LinearLayout>
+
+        <!-- 竖向分隔条 -->
+        <View
+            android:id="@+id/divider"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="@dimen/spacing_sm"
+            android:layout_marginBottom="@dimen/spacing_sm"
+            android:background="@color/md_outlineVariant" />
+
+        <!-- 右侧选择区域 - 点击进行多选 -->
+        <LinearLayout
+            android:id="@+id/item_select_area"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingHorizontal="@dimen/spacing_md"
+            android:background="?android:attr/selectableItemBackground">
+
+            <!-- 多选圆圈 -->
+            <ImageView
+                android:id="@+id/iv_check"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_check_circle"
+                android:contentDescription="选择" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

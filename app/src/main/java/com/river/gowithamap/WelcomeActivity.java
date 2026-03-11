@@ -1,6 +1,10 @@
 package com.river.gowithamap;
 
 import android.Manifest;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.Intent;
@@ -21,6 +25,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
+import android.view.animation.BounceInterpolator;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -90,29 +95,65 @@ public class WelcomeActivity extends BaseActivity {
         webViewMaxwell.setWebChromeClient(new WebChromeClient());
         webViewMaxwell.setWebViewClient(new WebViewClient());
 
-        // 使用 HTML 加载 GIF，自适应大小
+        // 使用 HTML 加载 GIF，背景透明，增大尺寸
         String gifUrl = "file:///android_res/drawable/maxwell_spinning.gif";
-        String html = "<html><body style=\"margin:0;padding:0;background-color:#FBFDF9;display:flex;justify-content:center;align-items:center;height:100vh;\">" +
-                "<img src=\"" + gifUrl + "\" style=\"max-width:80%;max-height:80%;width:auto;height:auto;object-fit:contain;\" />" +
+        
+        // HTML内容：固定大小400px，背景透明，添加阴影效果
+        String html = "<html>" +
+                "<head>" +
+                "<style>" +
+                "body { margin:0;padding:0;background-color:transparent;display:flex;justify-content:center;align-items:center;height:100vh; }" +
+                ".gif-container { " +
+                "  width:400px;" +
+                "  height:400px;" +
+                "  filter:drop-shadow(0 8px 20px rgba(0,0,0,0.5));" +
+                "  -webkit-filter:drop-shadow(0 8px 20px rgba(0,0,0,0.5));" +
+                "}" +
+                ".gif-container img { " +
+                "  width:100%;" +
+                "  height:100%;" +
+                "  object-fit:contain;" +
+                "}" +
+                "</style>" +
+                "</head>" +
+                "<body>" +
+                "<div class=\"gif-container\">" +
+                "<img src=\"" + gifUrl + "\" />" +
+                "</div>" +
                 "</body></html>";
+        webViewMaxwell.setBackgroundColor(android.graphics.Color.TRANSPARENT);
         webViewMaxwell.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
 
-        // 初始化双击检测
+        // 初始化双击检测和单击动画
         mDoubleTapHandler = new Handler(Looper.getMainLooper());
+        final boolean[] isDoubleTapped = {false};
+        
         mGestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
+            public boolean onSingleTapUp(MotionEvent e) {
+                // 延迟处理单击，等待确认不是双击
+                mDoubleTapHandler.postDelayed(() -> {
+                    if (!isDoubleTapped[0]) {
+                        // 执行单击跳起动画
+                        playJumpAnimation(webViewMaxwell);
+                    }
+                    isDoubleTapped[0] = false;
+                }, DOUBLE_TAP_TIMEOUT);
+                return true;
+            }
+            
+            @Override
             public boolean onDoubleTap(MotionEvent e) {
+                isDoubleTapped[0] = true;
                 playStockMarketSound();
                 return true;
             }
         });
 
-        // 设置双击监听
+        // 设置触摸监听
         webViewMaxwell.setOnTouchListener((v, event) -> {
-            if (mGestureDetector.onTouchEvent(event)) {
-                return true;
-            }
-            return v.onTouchEvent(event);
+            mGestureDetector.onTouchEvent(event);
+            return true;
         });
 
         Button startBtn = findViewById(R.id.startButton);
@@ -162,6 +203,34 @@ public class WelcomeActivity extends BaseActivity {
             mMediaPlayer.release();
             mMediaPlayer = null;
         }
+    }
+
+    /**
+     * 播放单击跳起动画（跳起后回弹）
+     */
+    private void playJumpAnimation(View view) {
+        // 跳起高度（向上移动）
+        final float jumpHeight = -100f;
+        
+        // 第一阶段：跳起（向上移动）
+        ObjectAnimator jumpUp = ObjectAnimator.ofFloat(view, "translationY", 0f, jumpHeight);
+        jumpUp.setDuration(200);
+        jumpUp.setInterpolator(new android.view.animation.DecelerateInterpolator());
+        
+        // 第二阶段：落地回弹（使用BounceInterpolator模拟物理回弹）
+        ObjectAnimator jumpDown = ObjectAnimator.ofFloat(view, "translationY", jumpHeight, 0f);
+        jumpDown.setDuration(600);
+        jumpDown.setInterpolator(new BounceInterpolator());
+        
+        // 按顺序执行动画
+        jumpUp.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                jumpDown.start();
+            }
+        });
+        
+        jumpUp.start();
     }
 
     /**

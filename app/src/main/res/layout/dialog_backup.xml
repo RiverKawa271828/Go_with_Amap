@@ -16,16 +16,15 @@
 
         <!-- 标题 -->
         <TextView
-            android:id="@+id/tv_dialog_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/dialog_multipoint_title"
+            android:text="备份数据"
             android:textAppearance="@style/TextAppearance.Title"
             android:textColor="@color/textPrimary"
             android:gravity="center"
             android:layout_marginBottom="@dimen/spacing_lg" />
 
-        <!-- 切换按钮 - 使用Segmented Button风格 -->
+        <!-- 切换按钮 - 导出/导入 -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -41,11 +40,11 @@
                 android:padding="@dimen/spacing_xs">
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_history"
+                    android:id="@+id/btn_export"
                     android:layout_width="0dp"
                     android:layout_height="48dp"
                     android:layout_weight="1"
-                    android:text="@string/btn_history"
+                    android:text="导出"
                     android:textSize="@dimen/text_body"
                     android:textColor="@color/md_onSurface"
                     app:backgroundTint="@color/md_primary"
@@ -57,11 +56,11 @@
                     android:shadowRadius="4" />
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_favorites"
+                    android:id="@+id/btn_import"
                     android:layout_width="0dp"
                     android:layout_height="48dp"
                     android:layout_weight="1"
-                    android:text="@string/btn_favorites"
+                    android:text="导入"
                     android:textSize="@dimen/text_body"
                     android:textColor="@color/md_onSurfaceVariant"
                     app:backgroundTint="@android:color/transparent"
@@ -71,9 +70,9 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- 历史列表容器 -->
+        <!-- 导出容器 -->
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/container_history"
+            android:id="@+id/container_export"
             android:layout_width="match_parent"
             android:layout_height="360dp"
             android:layout_marginBottom="@dimen/spacing_md"
@@ -82,7 +81,7 @@
             app:cardElevation="0dp">
 
             <ListView
-                android:id="@+id/lv_history"
+                android:id="@+id/lv_backup_files"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:divider="@null"
@@ -92,9 +91,9 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- 收藏列表容器 - 默认隐藏 -->
+        <!-- 导入容器 - 默认隐藏 -->
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/container_favorites"
+            android:id="@+id/container_import"
             android:layout_width="match_parent"
             android:layout_height="360dp"
             android:layout_marginBottom="@dimen/spacing_md"
@@ -103,71 +102,109 @@
             app:cardCornerRadius="@dimen/radius_md"
             app:cardElevation="0dp">
 
-            <ListView
-                android:id="@+id/lv_favorites"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:divider="@null"
-                android:dividerHeight="0dp"
-                android:padding="0dp"
-                android:scrollbars="vertical" />
+                android:orientation="vertical">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_select_file"
+                    style="@style/AppTheme.Button.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="@dimen/spacing_md"
+                    android:text="从文件选择" />
+
+                <ListView
+                    android:id="@+id/lv_import_files"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:divider="@null"
+                    android:dividerHeight="0dp"
+                    android:padding="0dp"
+                    android:scrollbars="vertical" />
+
+            </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- 已选择计数 -->
+        <!-- 提示文字 -->
         <TextView
-            android:id="@+id/tv_selected_count"
+            android:id="@+id/tv_hint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="已选择: 0 个坐标"
-            android:textSize="@dimen/text_body"
-            android:textColor="@color/colorPrimary"
-            android:fontFamily="sans-serif-medium"
-            android:layout_marginBottom="@dimen/spacing_md" />
+            android:text="点击选择备份文件，长按可多选"
+            android:textSize="@dimen/text_caption"
+            android:textColor="@color/textTertiary"
+            android:gravity="center"
+            android:layout_marginBottom="@dimen/spacing_xl" />
 
-        <!-- 半径输入 -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            style="@style/AppTheme.TextInput"
-            android:layout_marginBottom="@dimen/spacing_xl">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/et_radius"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/dialog_multipoint_radius_hint"
-                android:inputType="numberDecimal"
-                android:textSize="@dimen/text_body" />
-
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- 按钮区域 -->
+        <!-- 导出按钮区域 -->
         <LinearLayout
+            android:id="@+id/layout_export_buttons"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center">
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_cancel"
+                android:id="@+id/btn_delete_backup"
                 style="@style/AppTheme.Button.Outlined"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/btn_cancel"
+                android:text="删除"
+                android:visibility="gone"
                 android:layout_marginEnd="@dimen/spacing_sm" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_confirm"
+                android:id="@+id/btn_export_backup"
+                style="@style/AppTheme.Button"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:text="导出备份" />
+
+        </LinearLayout>
+
+        <!-- 导入按钮区域 - 默认隐藏 -->
+        <LinearLayout
+            android:id="@+id/layout_import_buttons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:visibility="gone">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_import_overwrite"
                 style="@style/AppTheme.Button"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/btn_confirm"
+                android:text="覆盖"
+                android:layout_marginEnd="@dimen/spacing_sm" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_import_incremental"
+                style="@style/AppTheme.Button.Outlined"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="增量"
                 android:layout_marginStart="@dimen/spacing_sm" />
 
         </LinearLayout>
+
+        <!-- 关闭按钮 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_close"
+            style="@style/AppTheme.Button.Outlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="关闭"
+            android:layout_marginTop="@dimen/spacing_md" />
 
     </LinearLayout>
 

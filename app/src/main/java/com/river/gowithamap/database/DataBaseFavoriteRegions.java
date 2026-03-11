@@ -173,4 +173,22 @@ public class DataBaseFavoriteRegions extends SQLiteOpenHelper {
     public static void deleteAllFavoriteRegions(SQLiteDatabase sqLiteDatabase) {
         clearAllFavoriteRegions(sqLiteDatabase);
     }
+
+    /**
+     * 更新区域收藏名称
+     * @param sqLiteDatabase 数据库
+     * @param id 区域ID
+     * @param newName 新名称
+     */
+    public static void updateFavoriteRegionName(SQLiteDatabase sqLiteDatabase, String id, String newName) {
+        try {
+            ContentValues values = new ContentValues();
+            values.put(DB_COLUMN_NAME, newName);
+            values.put(DB_COLUMN_TIMESTAMP, System.currentTimeMillis());
+            sqLiteDatabase.update(TABLE_NAME, values, DB_COLUMN_ID + " = ?", new String[]{id});
+            XLog.i("区域收藏名称更新成功: " + id + " -> " + newName);
+        } catch (Exception e) {
+            XLog.e("DATABASE: 更新区域收藏名称错误: " + e.getMessage());
+        }
+    }
 }

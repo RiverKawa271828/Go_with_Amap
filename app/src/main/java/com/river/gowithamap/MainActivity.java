@@ -133,8 +133,9 @@ import java.util.Map;
 import com.river.gowithamap.service.ServiceGo;
 import com.river.gowithamap.database.DataBaseFavorites;
 import com.river.gowithamap.database.DataBaseFavoriteRegions;
-import com.river.gowithamap.database.DataBaseHistoryLocation;
+
 import com.river.gowithamap.database.DataBaseHistorySearch;
+import com.river.gowithamap.database.DataBaseSimulationRecords;
 import com.river.gowithamap.database.DataBasePinnedCircles;
 import com.river.gowithamap.database.DataBasePinnedLocations;
 import com.river.gowithamap.utils.ShareUtils;
@@ -193,7 +194,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private ServiceConnection mConnection;
     private FloatingActionButton mButtonStart;
     /*============================== 历史记录 相关 ==============================*/
-    private SQLiteDatabase mLocationHistoryDB;
+    private static SQLiteDatabase mSimulationRecordsDB;
     private SQLiteDatabase mSearchHistoryDB;
     /*============================== 收藏 相关 ==============================*/
     private SQLiteDatabase mFavoritesDB;
@@ -402,7 +403,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         clearTempLocation();
 
         //close db
-        mLocationHistoryDB.close();
+        mSimulationRecordsDB.close();
         mSearchHistoryDB.close();
         if (mPinnedLocationsDB != null) {
             mPinnedLocationsDB.close();
@@ -605,13 +606,13 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             int id = item.getItemId();
 
             if (id == R.id.nav_history) {
-                Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
-
-                startActivity(intent);
+                showSimulationRecordsDialog();
             } else if (id == R.id.nav_multipoint) {
                 showMultiPointDialog();
             } else if (id == R.id.nav_favorites) {
                 showFavoritesDialog();
+            } else if (id == R.id.nav_pinned_manager) {
+                showPinnedManager();
             } else if (id == R.id.nav_import) {
                 showImportDialog();
             } else if (id == R.id.nav_settings) {
@@ -632,8 +633,8 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 // checkUpdateVersion(true);
                 GoUtils.DisplayToast(this, "升级检查已暂时禁用");
             } else if (id == R.id.nav_feedback) {
-                File file = new File(getExternalFilesDir("Logs"), GoApplication.LOG_FILE_NAME);
-                ShareUtils.shareFile(this, file, item.getTitle().toString());
+                // 问题反馈功能暂时禁用
+                GoUtils.DisplayToast(this, "问题反馈功能暂时禁用");
             }
 
             DrawerLayout drawer = findViewById(R.id.drawer_layout);
@@ -672,6 +673,9 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             showMarkerInfoAndMenu(marker);
             return true;
         });
+
+        // 设置自定义InfoWindow适配器
+        mAMap.setInfoWindowAdapter(new CustomInfoWindowAdapter());
 
         mAMap.setOnMapClickListener(new AMap.OnMapClickListener() {
             /**
@@ -728,7 +732,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     mSelectedCircleRadius = 0;
                 }
 
-                // 点击空白处不做任何操作（标记点点击由Marker点击监听处理）
+                // 点击空白处关闭InfoWindow（通过显示一个不可见的标记或清除当前标记）
+                if (mCurrentLocationMarker != null) {
+                    mCurrentLocationMarker.hideInfoWindow();
+                }
             }
         });
         // 2D SDK 没有 setOnPOIClickListener 方法
@@ -745,34 +752,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 RegeocodeQuery query = new RegeocodeQuery(latLonPoint, 200, GeocodeSearch.AMAP);
                 mGeocodeSearch.getFromLocationAsyn(query);
                 
-                // 长按设置新标记，已删除Snackbar，收藏功能通过单击标记菜单访问
+                // 长按设置新标记，收藏功能通过单击标记菜单访问
             }
         });
 
-        View poiView = View.inflate(MainActivity.this, R.layout.location_poi_info, null);
-        TextView poiAddress = poiView.findViewById(R.id.poi_address);
-        TextView poiLongitude = poiView.findViewById(R.id.poi_longitude);
-        TextView poiLatitude = poiView.findViewById(R.id.poi_latitude);
-        ImageButton ibSave = poiView.findViewById(R.id.poi_save);
-        ibSave.setOnClickListener(v -> {
-            recordCurrentLocation(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
-            GoUtils.DisplayToast(this, getResources().getString(R.string.app_location_save));
-        });
-        ImageButton ibCopy = poiView.findViewById(R.id.poi_copy);
-        ibCopy.setOnClickListener(v -> {
-            //获取剪贴板管理器：
-            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-            // 创建普通字符型ClipData
-            ClipData mClipData = ClipData.newPlainText("Label", mMarkLatLngMap.toString());
-            // 将 ClipData内容放到系统剪贴板里。
-            cm.setPrimaryClip(mClipData);
-
-            GoUtils.DisplayToast(this,  getResources().getString(R.string.app_location_copy));
-        });
-        ImageButton ibShare = poiView.findViewById(R.id.poi_share);
-        ibShare.setOnClickListener(v -> ShareUtils.shareText(MainActivity.this, "分享位置", poiLongitude.getText()+","+poiLatitude.getText()));
-        ImageButton ibFly = poiView.findViewById(R.id.poi_fly);
-        ibFly.setOnClickListener(this::doGoLocation);
         try {
             mGeocodeSearch = new GeocodeSearch(this);
             mGeocodeSearch.setOnGeocodeSearchListener(new GeocodeSearch.OnGeocodeSearchListener() {
@@ -784,15 +767,13 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                         RegeocodeAddress address = regeocodeResult.getRegeocodeAddress();
                         mMarkName = address.getFormatAddress();
                         // 2D SDK 中 RegeocodeAddress 没有 getLatLonPoint 方法，使用 mMarkLatLngMap 的坐标
-                        poiLatitude.setText(String.valueOf(mMarkLatLngMap.latitude));
-                        poiLongitude.setText(String.valueOf(mMarkLatLngMap.longitude));
-                        poiAddress.setText(mMarkName);
                         // 高德使用 Marker 的 info window 代替百度的 InfoWindow
+                        String snippetText = String.format("%.6f,%.6f", mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
                         MarkerOptions markerOptions = new MarkerOptions()
                                 .position(mMarkLatLngMap)
                                 .icon(mMapIndicator)
                                 .title(mMarkName)
-                                .snippet(poiLongitude.getText() + "," + poiLatitude.getText());
+                                .snippet(snippetText);
                         clearAllMapOverlays();
                         Marker marker = mAMap.addMarker(markerOptions);
                         // 更新临时标记引用
@@ -1168,13 +1149,35 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
 
                 CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLng(mMarkLatLngMap);
                 mAMap.moveCamera(cameraUpdate);
+                
+                // 保存模拟记录（只记录实际模拟的位置）
+                saveSimulationRecord(name, gcj02Latitude, gcj02Longitude);
             }
         } catch (Exception e) {
             ret = false;
-            XLog.e("ERROR: showHistoryLocation: " + e.getMessage());
+            XLog.e("ERROR: showLocation: " + e.getMessage());
         }
 
         return ret;
+    }
+    
+    /**
+     * 保存模拟记录
+     */
+    private static void saveSimulationRecord(String name, String lat, String lon) {
+        try {
+            if (mSimulationRecordsDB != null) {
+                ContentValues values = new ContentValues();
+                values.put(DataBaseSimulationRecords.DB_COLUMN_LOCATION, 
+                    name != null && !name.isEmpty() ? name : "未命名位置");
+                values.put(DataBaseSimulationRecords.DB_COLUMN_LATITUDE, lat);
+                values.put(DataBaseSimulationRecords.DB_COLUMN_LONGITUDE, lon);
+                values.put(DataBaseSimulationRecords.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
+                DataBaseSimulationRecords.saveSimulationRecord(mSimulationRecordsDB, values);
+            }
+        } catch (Exception e) {
+            XLog.e("保存模拟记录失败: " + e.getMessage());
+        }
     }
     
     /**
@@ -1293,6 +1296,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 }
 
                 recordCurrentLocation(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
+                saveSimulationRecord(mMarkName, String.valueOf(mMarkLatLngMap.latitude), String.valueOf(mMarkLatLngMap.longitude));
 
                 clearAllMapOverlays();
                 mMarkLatLngMap = null;
@@ -1316,6 +1320,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                             .setAction("Action", null).show();
 
                     recordCurrentLocation(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
+                    saveSimulationRecord(mMarkName, String.valueOf(mMarkLatLngMap.latitude), String.valueOf(mMarkLatLngMap.longitude));
                     clearAllMapOverlays();
                     mMarkLatLngMap = null;
 
@@ -1330,20 +1335,20 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     /*============================== 历史记录 相关 ==============================*/
     private void initStoreHistory() {
         try {
-            // 定位历史
-            DataBaseHistoryLocation dbLocation = new DataBaseHistoryLocation(getApplicationContext());
-            mLocationHistoryDB = dbLocation.getWritableDatabase();
+            // 模拟记录（替代原历史记录）
+            mSimulationRecordsDB = new DataBaseSimulationRecords(getApplicationContext()).getWritableDatabase();
             // 搜索历史
-            DataBaseHistorySearch dbHistory = new DataBaseHistorySearch(getApplicationContext());
-            mSearchHistoryDB = dbHistory.getWritableDatabase();
+            mSearchHistoryDB = new DataBaseHistorySearch(getApplicationContext()).getWritableDatabase();
             // 收藏
-            DataBaseFavorites dbFavorites = new DataBaseFavorites(getApplicationContext());
-            mFavoritesDB = dbFavorites.getWritableDatabase();
+            mFavoritesDB = new DataBaseFavorites(getApplicationContext()).getWritableDatabase();
+            // 收藏区域
+            mFavoriteRegionsDB = new DataBaseFavoriteRegions(getApplicationContext()).getWritableDatabase();
             // 固定坐标点
-            DataBasePinnedLocations dbPinnedLocations = new DataBasePinnedLocations(getApplicationContext());
-            mPinnedLocationsDB = dbPinnedLocations.getWritableDatabase();
+            mPinnedLocationsDB = new DataBasePinnedLocations(getApplicationContext()).getWritableDatabase();
+            // 固定区域
+            mPinnedCirclesDB = new DataBasePinnedCircles(getApplicationContext()).getWritableDatabase();
         } catch (Exception e) {
-            XLog.e("ERROR: sqlite init error");
+            XLog.e("ERROR: sqlite init error: " + e.getMessage());
         }
     }
     
@@ -1452,78 +1457,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         return data;
     }
 
-    // 记录请求的位置信息
+    // 记录请求的位置信息（此方法保留用于位置名称查询，不再保存到旧历史记录）
     private void recordCurrentLocation(double lng, double lat) {
-        //参数坐标系：gcj02
-        final String safeCode = "";  // 2D SDK 不需要安全码
-        final String ak = sharedPreferences.getString("setting_map_key", BuildConfig.AMAP_API_KEY);
-        double[] latLng = MapUtils.gcj02ToWgs84(lng, lat);
-        //gcj02坐标的位置信息，使用高德地图API
-        String mapApiUrl = "https://restapi.amap.com/v3/geocode/regeo?key=" + ak + "&output=json&location=" + lng + "," + lat;
-
-        okhttp3.Request request = new okhttp3.Request.Builder().url(mapApiUrl).get().build();
-        final Call call = mOkHttpClient.newCall(request);
-        call.enqueue(new Callback() {
-            @Override
-            public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                //http 请求失败
-                XLog.e("HTTP: HTTP GET FAILED");
-                //插表参数
-                ContentValues contentValues = new ContentValues();
-                contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LOCATION, mMarkName);
-                contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_WGS84, String.valueOf(latLng[0]));
-                contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LATITUDE_WGS84, String.valueOf(latLng[1]));
-                contentValues.put(DataBaseHistoryLocation.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
-                contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_CUSTOM, Double.toString(lng));
-                contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LATITUDE_CUSTOM, Double.toString(lat));
-
-                DataBaseHistoryLocation.saveHistoryLocation(mLocationHistoryDB, contentValues);
-            }
-
-            @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                ResponseBody responseBody = response.body();
-                if (responseBody != null) {
-                    String resp = responseBody.string();
-                    try {
-                        JSONObject getRetJson = new JSONObject(resp);
-
-                        if (Integer.parseInt(getRetJson.getString("status")) == 0) { // 位置获取成功
-                            JSONObject posInfoJson = getRetJson.getJSONObject("result");
-                            String formatted_address = posInfoJson.getString("formatted_address");
-                            ContentValues contentValues = new ContentValues();
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LOCATION, formatted_address);
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_WGS84, String.valueOf(latLng[0]));
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LATITUDE_WGS84, String.valueOf(latLng[1]));
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_CUSTOM, Double.toString(lng));
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LATITUDE_CUSTOM, Double.toString(lat));
-                            DataBaseHistoryLocation.saveHistoryLocation(mLocationHistoryDB, contentValues);
-                        } else {
-                            ContentValues contentValues = new ContentValues();
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LOCATION, mMarkName == null ? getRetJson.getString("message"): mMarkName);
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_WGS84, String.valueOf(latLng[0]));
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LATITUDE_WGS84, String.valueOf(latLng[1]));
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_CUSTOM, Double.toString(lng));
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LATITUDE_CUSTOM, Double.toString(lat));
-                            DataBaseHistoryLocation.saveHistoryLocation(mLocationHistoryDB, contentValues);
-                        }
-                    } catch (JSONException e) {
-                        XLog.e("JSON: resolve json error");
-                        ContentValues contentValues = new ContentValues();
-                        contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LOCATION, mMarkName == null ? getResources().getString(R.string.history_location_default_name) : mMarkName);
-                        contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LOCATION, mMarkName);
-                        contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_WGS84, String.valueOf(latLng[0]));
-                        contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LATITUDE_WGS84, String.valueOf(latLng[1]));
-                        contentValues.put(DataBaseHistoryLocation.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
-                        contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_CUSTOM, Double.toString(lng));
-                        contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LATITUDE_CUSTOM, Double.toString(lat));
-                        DataBaseHistoryLocation.saveHistoryLocation(mLocationHistoryDB, contentValues);
-                    }
-                }
-            }
-        });
+        // 模拟记录现在由saveSimulationRecord直接保存
+        // 此方法仅用于获取位置名称（如果需要）
+        XLog.d("recordCurrentLocation: 位置已记录，模拟记录由saveSimulationRecord保存");
     }
 
     /*============================== SearchView 相关 ==============================*/
@@ -1892,7 +1830,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         // 获取历史记录
         List<Map<String, Object>> historyData = getMultiPointHistoryData();
         if (historyData.isEmpty()) {
-            GoUtils.DisplayToast(this, "历史记录为空，请先保存位置");
+            GoUtils.DisplayToast(this, "模拟记录为空，请先保存位置");
             return;
         }
         
@@ -1901,34 +1839,18 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     }
     
     /**
-     * 获取历史位置数据用于多点定位
+     * 获取模拟记录数据用于多点定位
      */
     private List<Map<String, Object>> getMultiPointHistoryData() {
-        List<Map<String, Object>> data = new ArrayList<>();
-        try {
-            Cursor cursor = mLocationHistoryDB.query(DataBaseHistoryLocation.TABLE_NAME, 
-                null, null, null, null, null, 
-                DataBaseHistoryLocation.DB_COLUMN_TIMESTAMP + " DESC");
-            
-            if (cursor != null && cursor.moveToFirst()) {
-                do {
-                    Map<String, Object> item = new HashMap<>();
-                    String name = cursor.getString(cursor.getColumnIndexOrThrow(DataBaseHistoryLocation.DB_COLUMN_LOCATION));
-                    // 使用 CUSTOM 字段（GCJ02坐标，高德地图坐标）
-                    double lat = Double.parseDouble(cursor.getString(cursor.getColumnIndexOrThrow(DataBaseHistoryLocation.DB_COLUMN_LATITUDE_CUSTOM)));
-                    double lon = Double.parseDouble(cursor.getString(cursor.getColumnIndexOrThrow(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_CUSTOM)));
-                    
-                    item.put("name", name);
-                    item.put("lat", lat);
-                    item.put("lon", lon);
-                    data.add(item);
-                } while (cursor.moveToNext());
-                cursor.close();
-            }
-        } catch (Exception e) {
-            XLog.e("获取历史记录失败: " + e.getMessage());
-        }
-        return data;
+        // 使用模拟记录数据
+        return getSimulationRecordsData();
+    }
+    
+    /**
+     * 获取模拟记录数据（保留旧方法名以兼容多点定位功能）
+     */
+    private List<Map<String, Object>> getHistoryData() {
+        return getSimulationRecordsData();
     }
     
     /**
@@ -2014,7 +1936,14 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         }
         return data;
     }
-    
+
+    /**
+     * 获取模拟记录数据
+     */
+    private List<Map<String, Object>> getSimulationRecordsData() {
+        return DataBaseSimulationRecords.getAllSimulationRecords(mSimulationRecordsDB);
+    }
+
     /**
      * 显示多点定位选择对话框
      */
@@ -2171,6 +2100,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         });
         
         dialog.show();
+        GoUtils.setDialogWidth(dialog);
 
         // 设置缩放动画
         if (dialog.getWindow() != null) {
@@ -2306,11 +2236,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             // 显示格式：经度, 纬度
             holder.tvCoords.setText(String.format("%.6f, %.6f", lon, lat));
             
-            // 设置选中状态的背景色
+            // 设置选中状态的背景色 - 使用主题颜色
             if (position == selectedPosition) {
-                holder.container.setBackgroundColor(getColor(R.color.lightblue));
+                holder.container.setBackgroundColor(getColor(R.color.md_primaryContainer));
             } else {
-                holder.container.setBackgroundColor(getColor(android.R.color.white));
+                holder.container.setBackgroundColor(getColor(android.R.color.transparent));
             }
             
             return convertView;
@@ -2356,6 +2286,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         });
         
         dialog.show();
+        GoUtils.setDialogWidth(dialog);
     }
     
     /**
@@ -2698,18 +2629,48 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
      * 显示相交点
      */
     private void showIntersectionPoint(LatLng point) {
-        // 添加红色点标记
-        BitmapDescriptor redDot = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED);
+        // 生成相交点名称
+        String intersectionName = "相交点_" + System.currentTimeMillis();
+        
+        // 保存为固定点
+        saveIntersectionAsPinnedLocation(intersectionName, point.latitude, point.longitude);
+        
+        // 创建固定点样式的标记
+        BitmapDescriptor pinnedIcon = createPinnedMarkerIcon(intersectionName);
         mIntersectionMarker = mAMap.addMarker(new MarkerOptions()
             .position(point)
-            .title(getString(R.string.intersection_point))
-            .snippet("坐标: " + String.format("%.6f, %.6f", point.latitude, point.longitude))
-            .icon(redDot));
+            .title("已固定:" + intersectionName)
+            .snippet(String.format("%.6f, %.6f", point.longitude, point.latitude))
+            .icon(pinnedIcon));
+        mIntersectionMarker.setObject("pinned_location");
+        
+        // 添加到固定点列表
+        Map<String, Object> data = new HashMap<>();
+        data.put("name", intersectionName);
+        data.put("lat", point.latitude);
+        data.put("lon", point.longitude);
+        data.put("marker", mIntersectionMarker);
+        mPinnedLocationMarkers.add(mIntersectionMarker);
+        mPinnedLocationData.add(data);
         
         // 移动到该点
         mAMap.animateCamera(CameraUpdateFactory.newLatLngZoom(point, 18));
         
-        GoUtils.DisplayToast(this, "相交点坐标: " + String.format("%.6f, %.6f", point.latitude, point.longitude));
+        GoUtils.DisplayToast(this, "相交点已固定: " + intersectionName);
+    }
+    
+    /**
+     * 保存相交点为固定位置
+     */
+    private void saveIntersectionAsPinnedLocation(String name, double lat, double lon) {
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(DataBasePinnedLocations.DB_COLUMN_NAME, name);
+        contentValues.put(DataBasePinnedLocations.DB_COLUMN_LATITUDE, String.valueOf(lat));
+        contentValues.put(DataBasePinnedLocations.DB_COLUMN_LONGITUDE, String.valueOf(lon));
+        contentValues.put(DataBasePinnedLocations.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
+        
+        DataBasePinnedLocations.savePinnedLocation(mPinnedLocationsDB, contentValues);
+        XLog.i("相交点已保存为固定点: " + name);
     }
     
     /**
@@ -2738,15 +2699,31 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         // 显示相交区域
         showIntersectionArea(center, Math.max(maxDist, 10)); // 最小10米
         
-        // 标记所有圆周相交点
+        // 标记所有圆周相交点，并保存为固定点
         for (int i = 0; i < points.size(); i++) {
             LatLng point = points.get(i);
-            BitmapDescriptor orangeDot = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE);
-            mAMap.addMarker(new MarkerOptions()
+            String pointName = "圆周相交点_" + (i + 1) + "_" + System.currentTimeMillis();
+            
+            // 保存为固定点
+            saveIntersectionAsPinnedLocation(pointName, point.latitude, point.longitude);
+            
+            // 创建固定点样式的标记
+            BitmapDescriptor pinnedIcon = createPinnedMarkerIcon(pointName);
+            Marker marker = mAMap.addMarker(new MarkerOptions()
                 .position(point)
-                .title("圆周相交点 " + (i + 1))
-                .snippet("坐标: " + String.format("%.6f, %.6f", point.latitude, point.longitude))
-                .icon(orangeDot));
+                .title("已固定:" + pointName)
+                .snippet(String.format("%.6f, %.6f", point.longitude, point.latitude))
+                .icon(pinnedIcon));
+            marker.setObject("pinned_location");
+            
+            // 添加到固定点列表
+            Map<String, Object> data = new HashMap<>();
+            data.put("name", pointName);
+            data.put("lat", point.latitude);
+            data.put("lon", point.longitude);
+            data.put("marker", marker);
+            mPinnedLocationMarkers.add(marker);
+            mPinnedLocationData.add(data);
         }
         
         GoUtils.DisplayToast(this, "找到 " + points.size() + " 个圆周相交点");
@@ -2766,18 +2743,32 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             .strokeColor(0xFFFF0000) // 红色边框
             .strokeWidth(2));
         
-        // 添加中心深红色点
-        BitmapDescriptor darkRedDot = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE);
+        // 生成相交中心点名称并保存为固定点
+        String centerName = "相交中心_" + System.currentTimeMillis();
+        saveIntersectionAsPinnedLocation(centerName, center.latitude, center.longitude);
+        
+        // 创建固定点样式的中心标记
+        BitmapDescriptor pinnedIcon = createPinnedMarkerIcon(centerName);
         mIntersectionCenterMarker = mAMap.addMarker(new MarkerOptions()
             .position(center)
-            .title(getString(R.string.intersection_center))
-            .snippet("坐标: " + String.format("%.6f, %.6f", center.latitude, center.longitude))
-            .icon(darkRedDot));
+            .title("已固定:" + centerName)
+            .snippet(String.format("%.6f, %.6f", center.longitude, center.latitude))
+            .icon(pinnedIcon));
+        mIntersectionCenterMarker.setObject("pinned_location");
+        
+        // 添加到固定点列表
+        Map<String, Object> data = new HashMap<>();
+        data.put("name", centerName);
+        data.put("lat", center.latitude);
+        data.put("lon", center.longitude);
+        data.put("marker", mIntersectionCenterMarker);
+        mPinnedLocationMarkers.add(mIntersectionCenterMarker);
+        mPinnedLocationData.add(data);
         
         // 移动到该区域
         mAMap.animateCamera(CameraUpdateFactory.newLatLngZoom(center, 16));
         
-        GoUtils.DisplayToast(this, "相交区域中心: " + String.format("%.6f, %.6f", center.latitude, center.longitude));
+        GoUtils.DisplayToast(this, "相交区域中心已固定: " + centerName);
     }
     
     /**
@@ -3028,10 +3019,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         });
 
         dialog.show();
+        GoUtils.setDialogWidth(dialog);
     }
 
     /**
-     * 显示收藏列表对话框（包含坐标和区域）
+     * 显示收藏列表对话框（包含坐标和区域），支持多选删除
      */
     private void showFavoritesDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -3048,7 +3040,8 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         com.google.android.material.button.MaterialButton btnCoordinates = view.findViewById(R.id.btn_coordinates);
         com.google.android.material.button.MaterialButton btnRegions = view.findViewById(R.id.btn_regions);
         TextView tvHint = view.findViewById(R.id.tv_hint);
-        Button btnClear = view.findViewById(R.id.btn_clear);
+        com.google.android.material.button.MaterialButton btnClear = view.findViewById(R.id.btn_clear);
+        com.google.android.material.button.MaterialButton btnShare = view.findViewById(R.id.btn_share);
         Button btnClose = view.findViewById(R.id.btn_close);
 
         // 加载坐标收藏数据
@@ -3064,115 +3057,139 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             return;
         }
 
-        // 设置坐标列表适配器
-        SimpleAdapter favoritesAdapter = new SimpleAdapter(this, favorites,
-                R.layout.item_multipoint_history,
-                new String[]{"name", "coords"},
-                new int[]{R.id.tv_location_name, R.id.tv_coordinates});
-        lvFavorites.setAdapter(favoritesAdapter);
+        // 创建适配器（使用final数组以便在监听器中访问）
+        final FavoriteSelectAdapter[] favoritesAdapter = new FavoriteSelectAdapter[1];
+        final FavoriteSelectAdapter[] regionsAdapter = new FavoriteSelectAdapter[1];
 
-        // 设置区域列表适配器
-        SimpleAdapter regionsAdapter = new SimpleAdapter(this, regions,
-                R.layout.item_multipoint_history,
-                new String[]{"name", "coords"},
-                new int[]{R.id.tv_location_name, R.id.tv_coordinates});
-        lvRegions.setAdapter(regionsAdapter);
+        favoritesAdapter[0] = new FavoriteSelectAdapter(this, favorites);
+        regionsAdapter[0] = new FavoriteSelectAdapter(this, regions);
 
-        // 点击坐标项在地图上显示
-        lvFavorites.setOnItemClickListener((parent, v, position, id) -> {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> item = (Map<String, Object>) parent.getItemAtPosition(position);
-            String name = (String) item.get("name");
-            Double lat = (Double) item.get("lat");
-            Double lon = (Double) item.get("lon");
+        lvFavorites.setAdapter(favoritesAdapter[0]);
+        lvRegions.setAdapter(regionsAdapter[0]);
 
-            // 记录缓存区域
-            if (name != null && !name.isEmpty()) {
-                MapCacheManager.addCachedArea(this, name);
+        // 选择状态变化监听，更新按钮和提示
+        FavoriteSelectAdapter.OnSelectionChangeListener selectionListener = selectedCount -> {
+            boolean showingCoordinates = containerCoordinates.getVisibility() == View.VISIBLE;
+            FavoriteSelectAdapter currentAdapter = showingCoordinates ? favoritesAdapter[0] : regionsAdapter[0];
+            int count = currentAdapter.getSelectedPositions().size();
+
+            if (count > 0) {
+                btnClear.setText("删除 (" + count + ")");
+                btnClear.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.md_error)));
+                btnClear.setTextColor(getColor(R.color.md_onError));
+                tvHint.setText("已选择 " + count + " 项，点击删除或分享按钮");
+                // 当选中数>=1时显示分享按钮
+                btnShare.setVisibility(View.VISIBLE);
+            } else {
+                btnClear.setText("清除");
+                btnClear.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(android.R.color.transparent)));
+                btnClear.setTextColor(getColor(R.color.md_primary));
+                tvHint.setText("点击右侧圆圈选择，点击条目在地图上显示，长按编辑名称");
+                btnShare.setVisibility(View.GONE);
+            }
+        };
+
+        favoritesAdapter[0].setOnSelectionChangeListener(selectionListener);
+        regionsAdapter[0].setOnSelectionChangeListener(selectionListener);
+
+        // 设置点击监听器 - 点击圆圈选择，点击条目内容在地图上显示
+        favoritesAdapter[0].setOnItemClickListener(new FavoriteSelectAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(int position) {
+                // 点击条目内容区域 - 在地图上显示
+                Map<String, Object> item = favorites.get(position);
+                String name = (String) item.get("name");
+                double lat = (Double) item.get("lat");
+                double lon = (Double) item.get("lon");
+                showLocation(name, String.valueOf(lon), String.valueOf(lat));
+                dialog.dismiss();
             }
 
-            // 在地图上显示该位置
-            showLocation(name, String.valueOf(lon), String.valueOf(lat));
-            dialog.dismiss();
+            @Override
+            public void onCheckClick(int position) {
+                // 点击圆圈 - 触发选择
+                favoritesAdapter[0].toggleSelection(position);
+            }
         });
 
-        // 点击区域项在地图上显示圆
-        lvRegions.setOnItemClickListener((parent, v, position, id) -> {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> item = (Map<String, Object>) parent.getItemAtPosition(position);
-            String name = (String) item.get("name");
-            double lat = (double) item.get("lat");
-            double lon = (double) item.get("lon");
-            double radius = (double) item.get("radius");
+        regionsAdapter[0].setOnItemClickListener(new FavoriteSelectAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(int position) {
+                // 点击条目内容区域 - 在地图上显示
+                Map<String, Object> item = regions.get(position);
+                String name = (String) item.get("name");
+                double lat = (double) item.get("lat");
+                double lon = (double) item.get("lon");
+                double radius = (double) item.get("radius");
+                showRegion(name, lon, lat, radius);
+                dialog.dismiss();
+            }
 
-            // 在地图上显示该区域
-            showRegion(name, lon, lat, radius);
-            dialog.dismiss();
+            @Override
+            public void onCheckClick(int position) {
+                // 点击圆圈 - 触发选择
+                regionsAdapter[0].toggleSelection(position);
+            }
         });
+        
+        // 清除ListView的默认点击监听（因为我们已经在adapter中处理了）
+        lvFavorites.setOnItemClickListener(null);
+        lvRegions.setOnItemClickListener(null);
 
-        // 长按坐标删除或分享
+        // 长按编辑坐标收藏名称
         lvFavorites.setOnItemLongClickListener((parent, v, position, id) -> {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> item = (Map<String, Object>) parent.getItemAtPosition(position);
+            Map<String, Object> item = favorites.get(position);
             String favId = (String) item.get(DataBaseFavorites.DB_COLUMN_ID);
-            String name = (String) item.get("name");
-            Double lat = (Double) item.get("lat");
-            Double lon = (Double) item.get("lon");
+            String currentName = (String) item.get("name");
+
+            final EditText input = new EditText(this);
+            input.setText(currentName);
+            input.setSelection(currentName.length());
 
             new AlertDialog.Builder(this)
-                    .setTitle(name)
-                    .setItems(new String[]{"分享", "删除"}, (d, which) -> {
-                        if (which == 0) {
-                            // 分享
-                            showShareLocationDialog(name, lat, lon);
-                        } else if (which == 1) {
-                            // 删除
-                            DataBaseFavorites.deleteFavorite(mFavoritesDB, favId);
+                    .setTitle("修改名称")
+                    .setView(input)
+                    .setPositiveButton("确认", (d, which) -> {
+                        String newName = input.getText().toString().trim();
+                        if (!newName.isEmpty() && !newName.equals(currentName)) {
+                            DataBaseFavorites.updateFavoriteName(mFavoritesDB, favId, newName);
+                            // 刷新数据
                             favorites.clear();
                             favorites.addAll(getFavoritesData());
-                            if (favorites.isEmpty() && regions.isEmpty()) {
-                                dialog.dismiss();
-                                GoUtils.DisplayToast(this, "暂无收藏");
-                            } else {
-                                favoritesAdapter.notifyDataSetChanged();
-                                GoUtils.DisplayToast(this, "已删除");
-                            }
+                            favoritesAdapter[0].updateData(favorites);
+                            GoUtils.DisplayToast(this, "名称已修改");
                         }
                     })
+                    .setNegativeButton("取消", null)
                     .show();
             return true;
         });
 
-        // 长按区域删除或分享
+        // 长按编辑区域收藏名称
         lvRegions.setOnItemLongClickListener((parent, v, position, id) -> {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> item = (Map<String, Object>) parent.getItemAtPosition(position);
+            Map<String, Object> item = regions.get(position);
             String regionId = (String) item.get(DataBaseFavoriteRegions.DB_COLUMN_ID);
-            String name = (String) item.get("name");
-            double lat = (double) item.get("lat");
-            double lon = (double) item.get("lon");
-            double radius = (double) item.get("radius");
+            String currentName = (String) item.get("name");
+
+            final EditText input = new EditText(this);
+            input.setText(currentName);
+            input.setSelection(currentName.length());
 
             new AlertDialog.Builder(this)
-                    .setTitle(name)
-                    .setItems(new String[]{"分享", "删除"}, (d, which) -> {
-                        if (which == 0) {
-                            // 分享
-                            showShareRegionDialog(name, lat, lon, radius);
-                        } else if (which == 1) {
-                            // 删除
-                            DataBaseFavoriteRegions.deleteFavoriteRegion(mFavoriteRegionsDB, regionId);
+                    .setTitle("修改名称")
+                    .setView(input)
+                    .setPositiveButton("确认", (d, which) -> {
+                        String newName = input.getText().toString().trim();
+                        if (!newName.isEmpty() && !newName.equals(currentName)) {
+                            DataBaseFavoriteRegions.updateFavoriteRegionName(mFavoriteRegionsDB, regionId, newName);
+                            // 刷新数据
                             regions.clear();
                             regions.addAll(getFavoriteRegionsData());
-                            if (favorites.isEmpty() && regions.isEmpty()) {
-                                dialog.dismiss();
-                                GoUtils.DisplayToast(this, "暂无收藏");
-                            } else {
-                                regionsAdapter.notifyDataSetChanged();
-                                GoUtils.DisplayToast(this, "已删除");
-                            }
+                            regionsAdapter[0].updateData(regions);
+                            GoUtils.DisplayToast(this, "名称已修改");
                         }
                     })
+                    .setNegativeButton("取消", null)
                     .show();
             return true;
         });
@@ -3197,7 +3214,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 btnRegions.setTextColor(getColor(R.color.md_onSurfaceVariant));
                 btnRegions.setElevation(0);
                 // 更新提示文字
-                tvHint.setText("点击坐标在地图上显示，长按分享或删除");
+                selectionListener.onSelectionChanged(0);
             }
         });
 
@@ -3216,43 +3233,682 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 btnCoordinates.setTextColor(getColor(R.color.md_onSurfaceVariant));
                 btnCoordinates.setElevation(0);
                 // 更新提示文字
-                tvHint.setText("点击区域在地图上显示，长按分享或删除");
+                selectionListener.onSelectionChanged(0);
             }
         });
 
-        // 清除按钮 - 删除当前显示分类的所有收藏
+        // 清除/删除按钮点击事件
         btnClear.setOnClickListener(v -> {
             boolean showingCoordinates = containerCoordinates.getVisibility() == View.VISIBLE;
+            FavoriteSelectAdapter currentAdapter = showingCoordinates ? favoritesAdapter[0] : regionsAdapter[0];
+            List<Map<String, Object>> currentList = showingCoordinates ? favorites : regions;
+            String typeName = showingCoordinates ? "坐标" : "区域";
+            
+            List<Map<String, Object>> selectedItems = currentAdapter.getSelectedItems();
+            
+            if (selectedItems.isEmpty()) {
+                // 没有选中项，执行清除全部操作
+                new AlertDialog.Builder(this)
+                        .setTitle("清除" + typeName + "收藏")
+                        .setMessage("确定要删除所有" + typeName + "收藏吗？此操作不可恢复。")
+                        .setPositiveButton("确定", (d, which) -> {
+                            if (showingCoordinates) {
+                                DataBaseFavorites.deleteAllFavorites(mFavoritesDB);
+                                currentList.clear();
+                                currentList.addAll(getFavoritesData());
+                            } else {
+                                DataBaseFavoriteRegions.deleteAllFavoriteRegions(mFavoriteRegionsDB);
+                                currentList.clear();
+                                currentList.addAll(getFavoriteRegionsData());
+                            }
+                            currentAdapter.updateData(currentList);
+
+                            if (favorites.isEmpty() && regions.isEmpty()) {
+                                dialog.dismiss();
+                                GoUtils.DisplayToast(this, "暂无收藏");
+                            } else {
+                                GoUtils.DisplayToast(this, "已清除所有" + typeName + "收藏");
+                            }
+                        })
+                        .setNegativeButton("取消", null)
+                        .show();
+            } else {
+                // 有选中项，删除选中的条目
+                new AlertDialog.Builder(this)
+                        .setTitle("删除选中" + typeName)
+                        .setMessage("确定要删除选中的 " + selectedItems.size() + " 个" + typeName + "吗？")
+                        .setPositiveButton("确定", (d, which) -> {
+                            if (showingCoordinates) {
+                                for (Map<String, Object> item : selectedItems) {
+                                    String favId = (String) item.get(DataBaseFavorites.DB_COLUMN_ID);
+                                    DataBaseFavorites.deleteFavorite(mFavoritesDB, favId);
+                                }
+                                currentList.clear();
+                                currentList.addAll(getFavoritesData());
+                            } else {
+                                for (Map<String, Object> item : selectedItems) {
+                                    String regionId = (String) item.get(DataBaseFavoriteRegions.DB_COLUMN_ID);
+                                    DataBaseFavoriteRegions.deleteFavoriteRegion(mFavoriteRegionsDB, regionId);
+                                }
+                                currentList.clear();
+                                currentList.addAll(getFavoriteRegionsData());
+                            }
+                            currentAdapter.clearSelection();
+                            currentAdapter.updateData(currentList);
+
+                            if (favorites.isEmpty() && regions.isEmpty()) {
+                                dialog.dismiss();
+                                GoUtils.DisplayToast(this, "暂无收藏");
+                            } else {
+                                GoUtils.DisplayToast(this, "已删除 " + selectedItems.size() + " 个" + typeName);
+                            }
+                        })
+                        .setNegativeButton("取消", null)
+                        .show();
+            }
+        });
+
+        // 分享按钮点击 - 批量分享选中的条目
+        btnShare.setOnClickListener(v -> {
+            boolean showingCoordinates = containerCoordinates.getVisibility() == View.VISIBLE;
+            FavoriteSelectAdapter currentAdapter = showingCoordinates ? favoritesAdapter[0] : regionsAdapter[0];
+            List<Map<String, Object>> selectedItems = currentAdapter.getSelectedItems();
             String typeName = showingCoordinates ? "坐标" : "区域";
 
-            new AlertDialog.Builder(this)
-                    .setTitle("清除" + typeName + "收藏")
-                    .setMessage("确定要删除所有" + typeName + "收藏吗？此操作不可恢复。")
-                    .setPositiveButton("确定", (d, which) -> {
-                        if (showingCoordinates) {
-                            // 清除所有坐标收藏
-                            DataBaseFavorites.deleteAllFavorites(mFavoritesDB);
-                            favorites.clear();
-                            favorites.addAll(getFavoritesData());
-                            favoritesAdapter.notifyDataSetChanged();
-                        } else {
-                            // 清除所有区域收藏
-                            DataBaseFavoriteRegions.deleteAllFavoriteRegions(mFavoriteRegionsDB);
-                            regions.clear();
-                            regions.addAll(getFavoriteRegionsData());
-                            regionsAdapter.notifyDataSetChanged();
-                        }
+            if (selectedItems.size() < 2) {
+                GoUtils.DisplayToast(this, "请至少选择2个" + typeName + "进行批量分享");
+                return;
+            }
 
-                        // 检查是否还有任何收藏
-                        if (favorites.isEmpty() && regions.isEmpty()) {
-                            dialog.dismiss();
-                            GoUtils.DisplayToast(this, "暂无收藏");
-                        } else {
-                            GoUtils.DisplayToast(this, "已清除所有" + typeName + "收藏");
+            // 显示批量分享选项
+            showBatchShareDialog(selectedItems, typeName);
+        });
+
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        // 初始化提示文字
+        tvHint.setText("点击右侧圆圈选择，点击条目在地图上显示");
+
+        dialog.show();
+        GoUtils.setDialogWidth(dialog);
+
+        // 设置缩放动画
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setWindowAnimations(R.style.AppTheme_Animation_Zoom);
+        }
+    }
+
+    /**
+     * 显示固定管理对话框
+     * 使用与我的收藏相同的多选UI风格
+     */
+    private void showPinnedManager() {
+        // 获取固定坐标数据
+        List<Map<String, Object>> pinnedLocations = getPinnedLocationsData();
+        // 获取固定区域数据
+        List<Map<String, Object>> pinnedCircles = getPinnedCirclesData();
+
+        if (pinnedLocations.isEmpty() && pinnedCircles.isEmpty()) {
+            GoUtils.DisplayToast(this, "暂无固定项");
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_favorites, null);
+        builder.setView(view);
+
+        AlertDialog dialog = builder.create();
+
+        // 获取视图
+        ListView lvFavorites = view.findViewById(R.id.lv_favorites);
+        ListView lvRegions = view.findViewById(R.id.lv_regions);
+        View containerCoordinates = view.findViewById(R.id.container_coordinates);
+        View containerRegions = view.findViewById(R.id.container_regions);
+        com.google.android.material.button.MaterialButton btnCoordinates = view.findViewById(R.id.btn_coordinates);
+        com.google.android.material.button.MaterialButton btnRegions = view.findViewById(R.id.btn_regions);
+        TextView tvHint = view.findViewById(R.id.tv_hint);
+        com.google.android.material.button.MaterialButton btnClear = view.findViewById(R.id.btn_clear);
+        com.google.android.material.button.MaterialButton btnShare = view.findViewById(R.id.btn_share);
+        Button btnClose = view.findViewById(R.id.btn_close);
+
+        // 修改标题为"固定管理"
+        try {
+            // 从dialog_favorites.xml中找到标题TextView（第一个TextView子元素）
+            if (view instanceof android.view.ViewGroup) {
+                android.view.ViewGroup viewGroup = (android.view.ViewGroup) view;
+                for (int i = 0; i < viewGroup.getChildCount(); i++) {
+                    View child = viewGroup.getChildAt(i);
+                    if (child instanceof TextView) {
+                        ((TextView) child).setText("固定管理");
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            XLog.e("设置固定管理标题失败: " + e.getMessage());
+        }
+
+        // 修改按钮文字
+        btnCoordinates.setText("坐标");
+        btnRegions.setText("区域");
+
+        // 加载数据
+        XLog.i("固定管理: 加载 " + pinnedLocations.size() + " 个固定坐标, " + pinnedCircles.size() + " 个固定区域");
+
+        // 创建适配器
+        final FavoriteSelectAdapter[] locationsAdapter = new FavoriteSelectAdapter[1];
+        final FavoriteSelectAdapter[] circlesAdapter = new FavoriteSelectAdapter[1];
+
+        locationsAdapter[0] = new FavoriteSelectAdapter(this, pinnedLocations);
+        circlesAdapter[0] = new FavoriteSelectAdapter(this, pinnedCircles);
+
+        lvFavorites.setAdapter(locationsAdapter[0]);
+        lvRegions.setAdapter(circlesAdapter[0]);
+
+        // 选择状态变化监听
+        FavoriteSelectAdapter.OnSelectionChangeListener selectionListener = selectedCount -> {
+            boolean showingCoordinates = containerCoordinates.getVisibility() == View.VISIBLE;
+            FavoriteSelectAdapter currentAdapter = showingCoordinates ? locationsAdapter[0] : circlesAdapter[0];
+            int count = currentAdapter.getSelectedPositions().size();
+            
+            if (count > 0) {
+                btnClear.setText("取消固定 (" + count + ")");
+                btnClear.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.md_error)));
+                btnClear.setTextColor(getColor(R.color.md_onError));
+                tvHint.setText("已选择 " + count + " 项，点击取消固定按钮解除固定");
+                // 当选中数>=1时显示分享按钮
+                btnShare.setVisibility(View.VISIBLE);
+            } else {
+                btnClear.setText("全部取消固定");
+                btnClear.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(android.R.color.transparent)));
+                btnClear.setTextColor(getColor(R.color.md_primary));
+                tvHint.setText("点击右侧圆圈选择，点击左侧在地图上显示，长按编辑名称");
+                btnShare.setVisibility(View.GONE);
+            }
+        };
+
+        locationsAdapter[0].setOnSelectionChangeListener(selectionListener);
+        circlesAdapter[0].setOnSelectionChangeListener(selectionListener);
+
+        // 设置点击监听器 - 点击圆圈选择，点击左侧内容在地图上显示
+        locationsAdapter[0].setOnItemClickListener(new FavoriteSelectAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(int position) {
+                // 点击左侧内容区域 - 在地图上显示
+                Map<String, Object> item = pinnedLocations.get(position);
+                String name = (String) item.get("name");
+                double lat = (double) item.get("lat");
+                double lon = (double) item.get("lon");
+                showPinnedLocationOnMap(name, lat, lon);
+                dialog.dismiss();
+            }
+
+            @Override
+            public void onCheckClick(int position) {
+                // 点击圆圈 - 触发选择
+                locationsAdapter[0].toggleSelection(position);
+            }
+        });
+
+        circlesAdapter[0].setOnItemClickListener(new FavoriteSelectAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(int position) {
+                // 点击左侧内容区域 - 在地图上显示
+                Map<String, Object> item = pinnedCircles.get(position);
+                String name = (String) item.get("name");
+                double lat = (double) item.get("lat");
+                double lon = (double) item.get("lon");
+                double radius = (double) item.get("radius");
+                showPinnedRegionOnMap(name, lat, lon, radius);
+                dialog.dismiss();
+            }
+
+            @Override
+            public void onCheckClick(int position) {
+                // 点击圆圈 - 触发选择
+                circlesAdapter[0].toggleSelection(position);
+            }
+        });
+        
+        // 清除ListView的默认点击监听
+        lvFavorites.setOnItemClickListener(null);
+        lvRegions.setOnItemClickListener(null);
+
+        // 长按编辑固定坐标名称
+        lvFavorites.setOnItemLongClickListener((parent, v, position, id) -> {
+            Map<String, Object> item = pinnedLocations.get(position);
+            String locId = (String) item.get("id");
+            String currentName = (String) item.get("name");
+
+            final EditText input = new EditText(this);
+            input.setText(currentName);
+            input.setSelection(currentName.length());
+
+            new AlertDialog.Builder(this)
+                    .setTitle("修改名称")
+                    .setView(input)
+                    .setPositiveButton("确认", (d, which) -> {
+                        String newName = input.getText().toString().trim();
+                        if (!newName.isEmpty() && !newName.equals(currentName)) {
+                            DataBasePinnedLocations.updatePinnedLocationName(mPinnedLocationsDB, locId, newName);
+                            // 刷新数据
+                            pinnedLocations.clear();
+                            pinnedLocations.addAll(getPinnedLocationsData());
+                            locationsAdapter[0].updateData(pinnedLocations);
+                            GoUtils.DisplayToast(this, "名称已修改");
                         }
                     })
                     .setNegativeButton("取消", null)
                     .show();
+            return true;
+        });
+
+        // 长按编辑固定区域名称
+        lvRegions.setOnItemLongClickListener((parent, v, position, id) -> {
+            Map<String, Object> item = pinnedCircles.get(position);
+            String circleId = (String) item.get("id");
+            String currentName = (String) item.get("name");
+
+            final EditText input = new EditText(this);
+            input.setText(currentName);
+            input.setSelection(currentName.length());
+
+            new AlertDialog.Builder(this)
+                    .setTitle("修改名称")
+                    .setView(input)
+                    .setPositiveButton("确认", (d, which) -> {
+                        String newName = input.getText().toString().trim();
+                        if (!newName.isEmpty() && !newName.equals(currentName)) {
+                            DataBasePinnedCircles.updatePinnedCircleName(mPinnedCirclesDB, circleId, newName);
+                            // 刷新数据
+                            pinnedCircles.clear();
+                            pinnedCircles.addAll(getPinnedCirclesData());
+                            circlesAdapter[0].updateData(pinnedCircles);
+                            GoUtils.DisplayToast(this, "名称已修改");
+                        }
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+            return true;
+        });
+
+        // 加载切换动画
+        Animation switchFadeIn = AnimationUtils.loadAnimation(this, R.anim.switch_fade_in);
+        Animation switchFadeOut = AnimationUtils.loadAnimation(this, R.anim.switch_fade_out);
+
+        // 默认显示坐标列表
+        containerCoordinates.setVisibility(View.VISIBLE);
+        containerRegions.setVisibility(View.GONE);
+        // 使用dialog_favorites.xml的按钮样式
+        btnCoordinates.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.md_primary)));
+        btnCoordinates.setTextColor(getColor(R.color.md_onPrimary));
+
+        // 坐标按钮点击
+        btnCoordinates.setOnClickListener(v -> {
+            if (containerRegions.getVisibility() == View.VISIBLE) {
+                containerRegions.startAnimation(switchFadeOut);
+                containerRegions.setVisibility(View.GONE);
+                containerCoordinates.setVisibility(View.VISIBLE);
+                containerCoordinates.startAnimation(switchFadeIn);
+                // 更新按钮样式
+                btnCoordinates.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.md_primary)));
+                btnCoordinates.setTextColor(getColor(R.color.md_onPrimary));
+                btnRegions.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(android.R.color.transparent)));
+                btnRegions.setTextColor(getColor(R.color.md_onSurfaceVariant));
+                // 清除选择状态
+                circlesAdapter[0].clearSelection();
+                selectionListener.onSelectionChanged(0);
+            }
+        });
+
+        // 区域按钮点击
+        btnRegions.setOnClickListener(v -> {
+            if (containerCoordinates.getVisibility() == View.VISIBLE) {
+                containerCoordinates.startAnimation(switchFadeOut);
+                containerCoordinates.setVisibility(View.GONE);
+                containerRegions.setVisibility(View.VISIBLE);
+                containerRegions.startAnimation(switchFadeIn);
+                // 更新按钮样式
+                btnRegions.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.md_primary)));
+                btnRegions.setTextColor(getColor(R.color.md_onPrimary));
+                btnCoordinates.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(android.R.color.transparent)));
+                btnCoordinates.setTextColor(getColor(R.color.md_onSurfaceVariant));
+                // 清除选择状态
+                locationsAdapter[0].clearSelection();
+                selectionListener.onSelectionChanged(0);
+            }
+        });
+
+        // 取消固定按钮 - 取消选中的固定项
+        btnClear.setOnClickListener(v -> {
+            boolean showingCoordinates = containerCoordinates.getVisibility() == View.VISIBLE;
+            FavoriteSelectAdapter currentAdapter = showingCoordinates ? locationsAdapter[0] : circlesAdapter[0];
+            List<Map<String, Object>> currentList = showingCoordinates ? pinnedLocations : pinnedCircles;
+            String typeName = showingCoordinates ? "坐标" : "区域";
+            
+            List<Map<String, Object>> selectedItems = currentAdapter.getSelectedItems();
+            
+            if (selectedItems.isEmpty()) {
+                // 没有选中项，执行全部取消固定
+                new AlertDialog.Builder(this)
+                        .setTitle("取消固定所有" + typeName)
+                        .setMessage("确定要取消固定所有" + typeName + "吗？此操作不可恢复。")
+                        .setPositiveButton("确定", (d, which) -> {
+                            if (showingCoordinates) {
+                                // 取消固定所有坐标
+                                for (Map<String, Object> item : currentList) {
+                                    unpinLocationByData(item);
+                                }
+                                pinnedLocations.clear();
+                                pinnedLocations.addAll(getPinnedLocationsData());
+                            } else {
+                                // 取消固定所有区域
+                                for (Map<String, Object> item : currentList) {
+                                    unpinCircleByData(item);
+                                }
+                                pinnedCircles.clear();
+                                pinnedCircles.addAll(getPinnedCirclesData());
+                            }
+                            currentAdapter.updateData(currentList);
+                            
+                            if (pinnedLocations.isEmpty() && pinnedCircles.isEmpty()) {
+                                dialog.dismiss();
+                                GoUtils.DisplayToast(this, "暂无固定项");
+                            } else {
+                                GoUtils.DisplayToast(this, "已取消固定所有" + typeName);
+                            }
+                        })
+                        .setNegativeButton("取消", null)
+                        .show();
+            } else {
+                // 有选中项，取消固定选中的条目
+                new AlertDialog.Builder(this)
+                        .setTitle("取消固定选中" + typeName)
+                        .setMessage("确定要取消固定选中的 " + selectedItems.size() + " 个" + typeName + "吗？")
+                        .setPositiveButton("确定", (d, which) -> {
+                            if (showingCoordinates) {
+                                for (Map<String, Object> item : selectedItems) {
+                                    unpinLocationByData(item);
+                                }
+                                pinnedLocations.clear();
+                                pinnedLocations.addAll(getPinnedLocationsData());
+                            } else {
+                                for (Map<String, Object> item : selectedItems) {
+                                    unpinCircleByData(item);
+                                }
+                                pinnedCircles.clear();
+                                pinnedCircles.addAll(getPinnedCirclesData());
+                            }
+                            currentAdapter.clearSelection();
+                            currentAdapter.updateData(currentList);
+                            
+                            if (pinnedLocations.isEmpty() && pinnedCircles.isEmpty()) {
+                                dialog.dismiss();
+                                GoUtils.DisplayToast(this, "暂无固定项");
+                            } else {
+                                GoUtils.DisplayToast(this, "已取消固定 " + selectedItems.size() + " 个" + typeName);
+                            }
+                        })
+                        .setNegativeButton("取消", null)
+                        .show();
+            }
+        });
+
+        // 分享按钮点击 - 批量分享选中的条目
+        btnShare.setOnClickListener(v -> {
+            boolean showingCoordinates = containerCoordinates.getVisibility() == View.VISIBLE;
+            FavoriteSelectAdapter currentAdapter = showingCoordinates ? locationsAdapter[0] : circlesAdapter[0];
+            List<Map<String, Object>> selectedItems = currentAdapter.getSelectedItems();
+            String typeName = showingCoordinates ? "坐标" : "区域";
+
+            if (selectedItems.size() < 2) {
+                GoUtils.DisplayToast(this, "请至少选择2个" + typeName + "进行批量分享");
+                return;
+            }
+
+            // 显示批量分享选项
+            showBatchShareDialog(selectedItems, typeName);
+        });
+
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        // 初始化提示文字
+        tvHint.setText("点击右侧圆圈选择，点击条目在地图上显示，长按编辑名称");
+
+        dialog.show();
+        GoUtils.setDialogWidth(dialog);
+
+        // 设置缩放动画
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setWindowAnimations(R.style.AppTheme_Animation_Zoom);
+        }
+    }
+
+    /**
+     * 显示模拟记录对话框
+     * 使用与我的收藏相同的多选UI风格
+     */
+    private void showSimulationRecordsDialog() {
+        // 检查数据库是否初始化
+        if (mSimulationRecordsDB == null) {
+            GoUtils.DisplayToast(this, "数据库未初始化，请重启应用");
+            return;
+        }
+
+        // 获取模拟记录数据
+        List<Map<String, Object>> recordsData = getSimulationRecordsData();
+
+        if (recordsData == null || recordsData.isEmpty()) {
+            GoUtils.DisplayToast(this, "暂无模拟记录");
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_history, null);
+        // 修改标题
+        TextView tvTitle = view.findViewById(R.id.tv_title);
+        if (tvTitle != null) {
+            tvTitle.setText("模拟记录");
+        }
+        builder.setView(view);
+
+        AlertDialog dialog = builder.create();
+
+        // 获取视图
+        ListView lvHistory = view.findViewById(R.id.lv_history);
+        View containerHistory = view.findViewById(R.id.container_history);
+        TextView tvNoRecord = view.findViewById(R.id.tv_no_record);
+        TextView tvHint = view.findViewById(R.id.tv_hint);
+        SearchView searchView = view.findViewById(R.id.search_view);
+        com.google.android.material.button.MaterialButton btnClear = view.findViewById(R.id.btn_clear);
+        com.google.android.material.button.MaterialButton btnShare = view.findViewById(R.id.btn_share);
+        com.google.android.material.button.MaterialButton btnClose = view.findViewById(R.id.btn_close);
+
+        // 加载数据
+        XLog.i("模拟记录: 加载 " + recordsData.size() + " 条记录");
+
+        // 创建适配器
+        final FavoriteSelectAdapter[] historyAdapter = new FavoriteSelectAdapter[1];
+        historyAdapter[0] = new FavoriteSelectAdapter(this, recordsData);
+        lvHistory.setAdapter(historyAdapter[0]);
+
+        // 存储原始数据用于搜索过滤
+        final List<Map<String, Object>> originalData = new ArrayList<>(recordsData);
+
+        // 选择状态变化监听
+        FavoriteSelectAdapter.OnSelectionChangeListener selectionListener = selectedCount -> {
+            int count = historyAdapter[0].getSelectedPositions().size();
+
+            if (count > 0) {
+                btnClear.setText("删除 (" + count + ")");
+                btnClear.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.md_error)));
+                btnClear.setTextColor(getColor(R.color.md_onError));
+                tvHint.setText("已选择 " + count + " 项，点击删除或分享按钮");
+                // 当选中数>=1时显示分享按钮
+                btnShare.setVisibility(View.VISIBLE);
+            } else {
+                btnClear.setText("全部删除");
+                btnClear.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(android.R.color.transparent)));
+                btnClear.setTextColor(getColor(R.color.md_primary));
+                tvHint.setText("点击右侧圆圈选择，点击条目在地图上显示，长按编辑名称");
+                btnShare.setVisibility(View.GONE);
+            }
+        };
+
+        historyAdapter[0].setOnSelectionChangeListener(selectionListener);
+
+        // 设置点击监听器 - 点击圆圈选择，点击条目内容在地图上显示
+        historyAdapter[0].setOnItemClickListener(new FavoriteSelectAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(int position) {
+                // 点击条目内容区域 - 在地图上显示
+                Map<String, Object> item = recordsData.get(position);
+                String name = (String) item.get("name");
+                double lat = (double) item.get("lat");
+                double lon = (double) item.get("lon");
+                showLocation(name, String.valueOf(lon), String.valueOf(lat));
+                dialog.dismiss();
+            }
+
+            @Override
+            public void onCheckClick(int position) {
+                // 点击圆圈 - 触发选择
+                historyAdapter[0].toggleSelection(position);
+            }
+        });
+
+        // 清除ListView的默认点击监听
+        lvHistory.setOnItemClickListener(null);
+
+        // 长按编辑模拟记录名称
+        lvHistory.setOnItemLongClickListener((parent, v, position, id) -> {
+            Map<String, Object> item = recordsData.get(position);
+            String locId = (String) item.get("id");
+            String currentName = (String) item.get("name");
+
+            final EditText input = new EditText(this);
+            input.setText(currentName);
+            input.setSelection(currentName.length());
+
+            new AlertDialog.Builder(this)
+                    .setTitle("修改名称")
+                    .setView(input)
+                    .setPositiveButton("确认", (d, which) -> {
+                        String newName = input.getText().toString().trim();
+                        if (!newName.isEmpty() && !newName.equals(currentName)) {
+                            DataBaseSimulationRecords.updateSimulationRecordName(mSimulationRecordsDB, locId, newName);
+                            // 刷新数据
+                            recordsData.clear();
+                            recordsData.addAll(getSimulationRecordsData());
+                            originalData.clear();
+                            originalData.addAll(recordsData);
+                            historyAdapter[0].clearSelection();
+                            historyAdapter[0].updateData(recordsData);
+                            GoUtils.DisplayToast(this, "名称已修改");
+                        }
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+            return true;
+        });
+
+        // 搜索功能
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                if (TextUtils.isEmpty(newText)) {
+                    // 恢复原始数据
+                    recordsData.clear();
+                    recordsData.addAll(originalData);
+                } else {
+                    // 过滤数据
+                    List<Map<String, Object>> filteredData = new ArrayList<>();
+                    for (Map<String, Object> item : originalData) {
+                        String name = (String) item.get("name");
+                        String coords = (String) item.get("coords");
+                        if ((name != null && name.toLowerCase().contains(newText.toLowerCase())) ||
+                            (coords != null && coords.contains(newText))) {
+                            filteredData.add(item);
+                        }
+                    }
+                    recordsData.clear();
+                    recordsData.addAll(filteredData);
+                }
+                historyAdapter[0].clearSelection();
+                historyAdapter[0].updateData(recordsData);
+                return false;
+            }
+        });
+
+        // 删除按钮点击 - 删除选中的模拟记录
+        btnClear.setOnClickListener(v -> {
+            List<Map<String, Object>> selectedItems = historyAdapter[0].getSelectedItems();
+
+            if (selectedItems.isEmpty()) {
+                // 没有选中项，执行全部删除
+                new AlertDialog.Builder(this)
+                        .setTitle("删除全部模拟记录")
+                        .setMessage("确定要删除全部模拟记录吗？此操作不可恢复。")
+                        .setPositiveButton("确定", (d, which) -> {
+                            try {
+                                DataBaseSimulationRecords.clearAllSimulationRecords(mSimulationRecordsDB);
+                                GoUtils.DisplayToast(this, "已删除全部模拟记录");
+                                dialog.dismiss();
+                            } catch (Exception e) {
+                                XLog.e("删除全部模拟记录失败: " + e.getMessage());
+                                GoUtils.DisplayToast(this, "删除失败");
+                            }
+                        })
+                        .setNegativeButton("取消", null)
+                        .show();
+            } else {
+                // 删除选中的记录
+                new AlertDialog.Builder(this)
+                        .setTitle("删除选中记录")
+                        .setMessage("确定要删除选中的 " + selectedItems.size() + " 条模拟记录吗？")
+                        .setPositiveButton("确定", (d, which) -> {
+                            try {
+                                for (Map<String, Object> item : selectedItems) {
+                                    String id = (String) item.get("id");
+                                    DataBaseSimulationRecords.deleteSimulationRecord(mSimulationRecordsDB, id);
+                                }
+                                GoUtils.DisplayToast(this, "已删除 " + selectedItems.size() + " 条记录");
+                                // 刷新数据
+                                recordsData.clear();
+                                recordsData.addAll(getSimulationRecordsData());
+                                originalData.clear();
+                                originalData.addAll(recordsData);
+                                historyAdapter[0].clearSelection();
+                                historyAdapter[0].updateData(recordsData);
+                                if (recordsData.isEmpty()) {
+                                    dialog.dismiss();
+                                }
+                            } catch (Exception e) {
+                                XLog.e("删除历史记录失败: " + e.getMessage());
+                                GoUtils.DisplayToast(this, "删除失败");
+                            }
+                        })
+                        .setNegativeButton("取消", null)
+                        .show();
+            }
+        });
+
+        // 分享按钮点击 - 批量分享选中的条目
+        btnShare.setOnClickListener(v -> {
+            List<Map<String, Object>> selectedItems = historyAdapter[0].getSelectedItems();
+
+            if (selectedItems.isEmpty()) {
+                GoUtils.DisplayToast(this, "请至少选择1条记录进行分享");
+                return;
+            }
+
+            // 显示批量分享选项
+            showBatchShareDialog(selectedItems, "历史记录");
         });
 
         btnClose.setOnClickListener(v -> dialog.dismiss());
@@ -3263,6 +3919,177 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         if (dialog.getWindow() != null) {
             dialog.getWindow().setWindowAnimations(R.style.AppTheme_Animation_Zoom);
         }
+    }
+
+    /**
+     * 获取固定坐标数据
+     */
+    private List<Map<String, Object>> getPinnedLocationsData() {
+        List<Map<String, Object>> data = new ArrayList<>();
+        try {
+            List<Map<String, Object>> pinnedLocations = DataBasePinnedLocations.getAllPinnedLocations(mPinnedLocationsDB);
+            for (Map<String, Object> pinned : pinnedLocations) {
+                Map<String, Object> item = new HashMap<>();
+                String id = (String) pinned.get(DataBasePinnedLocations.DB_COLUMN_ID);
+                String name = (String) pinned.get(DataBasePinnedLocations.DB_COLUMN_NAME);
+                double lat = Double.parseDouble((String) pinned.get(DataBasePinnedLocations.DB_COLUMN_LATITUDE));
+                double lon = Double.parseDouble((String) pinned.get(DataBasePinnedLocations.DB_COLUMN_LONGITUDE));
+
+                item.put("id", id);
+                item.put("name", name);
+                item.put("lat", lat);
+                item.put("lon", lon);
+                item.put("coords", String.format("%.6f, %.6f", lat, lon));
+                data.add(item);
+            }
+        } catch (Exception e) {
+            XLog.e("获取固定坐标数据失败: " + e.getMessage());
+        }
+        return data;
+    }
+
+    /**
+     * 获取固定区域数据
+     */
+    private List<Map<String, Object>> getPinnedCirclesData() {
+        List<Map<String, Object>> data = new ArrayList<>();
+        try {
+            List<Map<String, Object>> pinnedCircles = DataBasePinnedCircles.getAllPinnedCircles(mPinnedCirclesDB);
+            for (Map<String, Object> pinned : pinnedCircles) {
+                Map<String, Object> item = new HashMap<>();
+                String id = (String) pinned.get(DataBasePinnedCircles.DB_COLUMN_ID);
+                String name = (String) pinned.get(DataBasePinnedCircles.DB_COLUMN_NAME);
+                double lat = Double.parseDouble((String) pinned.get(DataBasePinnedCircles.DB_COLUMN_CENTER_LAT));
+                double lon = Double.parseDouble((String) pinned.get(DataBasePinnedCircles.DB_COLUMN_CENTER_LON));
+                double radius = Double.parseDouble((String) pinned.get(DataBasePinnedCircles.DB_COLUMN_RADIUS));
+
+                item.put("id", id);
+                item.put("name", name);
+                item.put("lat", lat);
+                item.put("lon", lon);
+                item.put("radius", radius);
+                item.put("coords", String.format("半径 %.0f 米", radius));
+                data.add(item);
+            }
+        } catch (Exception e) {
+            XLog.e("获取固定区域数据失败: " + e.getMessage());
+        }
+        return data;
+    }
+
+    /**
+     * 根据数据取消固定坐标点
+     */
+    private void unpinLocationByData(Map<String, Object> item) {
+        String id = (String) item.get("id");
+        String name = (String) item.get("name");
+        double lat = (double) item.get("lat");
+        double lon = (double) item.get("lon");
+
+        // 从数据库删除
+        DataBasePinnedLocations.deletePinnedLocation(mPinnedLocationsDB, id);
+
+        // 在列表中查找并移除
+        int index = -1;
+        for (int i = 0; i < mPinnedLocationData.size(); i++) {
+            Map<String, Object> data = mPinnedLocationData.get(i);
+            String pinnedName = (String) data.get("name");
+            if (pinnedName.equals(name)) {
+                index = i;
+                break;
+            }
+        }
+
+        if (index >= 0) {
+            Marker marker = mPinnedLocationMarkers.get(index);
+
+            // 将标记变回未固定状态
+            marker.setIcon(mMapIndicator);
+            marker.setTitle(name);
+            marker.setSnippet(String.format("%.6f, %.6f", marker.getPosition().longitude, marker.getPosition().latitude));
+            marker.setObject("temp_location");
+
+            // 从固定列表移除
+            mPinnedLocationMarkers.remove(index);
+            mPinnedLocationData.remove(index);
+
+            // 设置为临时标记
+            long newTimestamp = System.currentTimeMillis();
+            if (sTempMarker != null && sTempMarker != marker && sTempMarkerTimestamp > 0) {
+                sTempMarker.remove();
+            }
+
+            mCurrentLocationMarker = marker;
+            sTempMarker = marker;
+            mCurrentLocationMarkerTimestamp = newTimestamp;
+            sTempMarkerTimestamp = newTimestamp;
+            mIsCurrentLocationPinned = false;
+            mMarkLatLngMap = marker.getPosition();
+            mMarkName = name;
+        }
+
+        XLog.i("取消固定坐标: " + name);
+    }
+
+    /**
+     * 根据数据取消固定圆
+     */
+    private void unpinCircleByData(Map<String, Object> item) {
+        String id = (String) item.get("id");
+        String name = (String) item.get("name");
+        double lat = (double) item.get("lat");
+        double lon = (double) item.get("lon");
+        double radius = (double) item.get("radius");
+
+        // 从数据库删除
+        DataBasePinnedCircles.deletePinnedCircle(mPinnedCirclesDB, id);
+
+        // 在列表中查找并移除
+        int index = -1;
+        for (int i = 0; i < mPinnedCircleData.size(); i++) {
+            Map<String, Object> data = mPinnedCircleData.get(i);
+            String pinnedName = (String) data.get("name");
+            if (pinnedName.equals(name)) {
+                index = i;
+                break;
+            }
+        }
+
+        if (index >= 0) {
+            Circle circle = mPinnedCircles.get(index);
+            Marker marker = mPinnedCircleMarkers.get(index);
+
+            // 从固定列表移除
+            mPinnedCircles.remove(index);
+            mPinnedCircleMarkers.remove(index);
+            mPinnedCircleData.remove(index);
+
+            // 将圆变回临时圆状态（黄色）
+            circle.setStrokeColor(0xFFCCCC00);
+            circle.setFillColor(0x55FFFF00);
+
+            // 添加到多点定位列表
+            LatLng center = new LatLng(lat, lon);
+            mMultiPointCircles.add(circle);
+            mMultiPointCenters.add(center);
+            mMultiPointRadius.add(radius);
+            mMultiPointMarkers.add(marker);
+
+            // 设置为当前临时圆
+            long newTimestamp = System.currentTimeMillis();
+            mSelectedCircle = circle;
+            mSelectedCircleIndex = mMultiPointCircles.size() - 1;
+            mSelectedCircleCenter = center;
+            mSelectedCircleRadius = radius;
+            mIsSelectedCirclePinned = false;
+            mSelectedCircleTimestamp = newTimestamp;
+            sTempCircleTimestamp = newTimestamp;
+
+            marker.setTitle(name);
+            marker.setSnippet("半径: " + String.format("%.0f", radius) + "米");
+        }
+
+        XLog.i("取消固定区域: " + name);
     }
 
     /**
@@ -3292,6 +4119,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         btnCancel.setOnClickListener(v -> dialog.dismiss());
 
         dialog.show();
+        GoUtils.setDialogWidth(dialog);
     }
 
     /**
@@ -3352,58 +4180,37 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             }
             XLog.i("导入类型: '" + type + "'");
 
-            if ("circle".equals(type)) {
-                // 导入圆形区域
-                String name = json.optString("name", "导入的区域");
-                double lat = json.optDouble("lat", 0);
-                double lon = json.optDouble("lon", 0);
-                double radius = json.optDouble("radius", 1000);
+            if ("batch".equals(type)) {
+                // 批量导入
+                int count = json.optInt("count", 0);
+                String itemType = json.optString("itemType", "");
+                JSONArray items = json.optJSONArray("items");
 
-                if (lat != 0 && lon != 0) {
-                    // 保存到数据库
-                    ContentValues contentValues = new ContentValues();
-                    contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_NAME, name);
-                    contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_CENTER_LAT, String.valueOf(lat));
-                    contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_CENTER_LON, String.valueOf(lon));
-                    contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_RADIUS, String.valueOf(radius));
-                    contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
-
-                    DataBaseFavoriteRegions.saveFavoriteRegion(mFavoriteRegionsDB, contentValues);
-
-                    // 在地图上显示导入的圆
-                    showRegion(name, lon, lat, radius);
-
-                    GoUtils.DisplayToast(this, "区域导入成功: " + name);
-                    XLog.i("导入区域: " + name + " (" + lat + ", " + lon + "), 半径: " + radius + "米");
+                if (items != null && items.length() > 0) {
+                    int successCount = 0;
+                    for (int i = 0; i < items.length(); i++) {
+                        JSONObject item = items.getJSONObject(i);
+                        if (processImportItem(item)) {
+                            successCount++;
+                        }
+                    }
+                    GoUtils.DisplayToast(this, "批量导入完成: " + successCount + "/" + items.length() + " 个成功");
                 } else {
-                    GoUtils.DisplayToast(this, "无效的区域数据");
+                    GoUtils.DisplayToast(this, "批量导入数据为空");
+                }
+            } else if ("circle".equals(type)) {
+                // 导入单个圆形区域
+                if (processImportItem(json)) {
+                    GoUtils.DisplayToast(this, "区域导入成功");
+                } else {
+                    GoUtils.DisplayToast(this, "区域导入失败");
                 }
             } else if ("location".equals(type)) {
-                // 导入坐标点
-                String name = json.optString("name", "导入的位置");
-                double lat = json.optDouble("lat", 0);
-                double lon = json.optDouble("lon", 0);
-
-                if (lat != 0 && lon != 0) {
-                    // 保存到坐标收藏数据库
-                    ContentValues contentValues = new ContentValues();
-                    contentValues.put(DataBaseFavorites.DB_COLUMN_NAME, name);
-                    contentValues.put(DataBaseFavorites.DB_COLUMN_LATITUDE, String.valueOf(lat));
-                    contentValues.put(DataBaseFavorites.DB_COLUMN_LONGITUDE, String.valueOf(lon));
-                    contentValues.put(DataBaseFavorites.DB_COLUMN_TIMESTAMP, System.currentTimeMillis());
-
-                    DataBaseFavorites.saveFavorite(mFavoritesDB, contentValues);
-
-                    // 在地图上显示该位置
-                    LatLng latLng = new LatLng(lat, lon);
-                    mMarkLatLngMap = latLng;
-                    mMarkName = name;
-                    mAMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16));
-
-                    GoUtils.DisplayToast(this, "坐标导入成功: " + name);
-                    XLog.i("导入坐标: " + name + " (" + lat + ", " + lon + ")");
+                // 导入单个坐标点
+                if (processImportItem(json)) {
+                    GoUtils.DisplayToast(this, "坐标导入成功");
                 } else {
-                    GoUtils.DisplayToast(this, "无效的坐标数据");
+                    GoUtils.DisplayToast(this, "坐标导入失败");
                 }
             } else if (type == null || type.isEmpty()) {
                 // 没有type字段，检查是否有坐标数据，有则默认当作坐标点导入
@@ -3438,6 +4245,57 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             XLog.e("解析导入数据失败: " + e.getMessage());
             GoUtils.DisplayToast(this, "数据格式错误");
         }
+    }
+
+    /**
+     * 处理单个导入项
+     * @return 是否导入成功
+     */
+    private boolean processImportItem(JSONObject json) {
+        try {
+            String type = json.optString("type", "").trim().toLowerCase();
+
+            if ("circle".equals(type)) {
+                // 导入圆形区域
+                String name = json.optString("name", "导入的区域");
+                double lat = json.optDouble("lat", 0);
+                double lon = json.optDouble("lon", 0);
+                double radius = json.optDouble("radius", 1000);
+
+                if (lat != 0 && lon != 0) {
+                    ContentValues contentValues = new ContentValues();
+                    contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_NAME, name);
+                    contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_CENTER_LAT, String.valueOf(lat));
+                    contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_CENTER_LON, String.valueOf(lon));
+                    contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_RADIUS, String.valueOf(radius));
+                    contentValues.put(DataBaseFavoriteRegions.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
+
+                    DataBaseFavoriteRegions.saveFavoriteRegion(mFavoriteRegionsDB, contentValues);
+                    XLog.i("导入区域: " + name + " (" + lat + ", " + lon + "), 半径: " + radius + "米");
+                    return true;
+                }
+            } else if ("location".equals(type)) {
+                // 导入坐标点
+                String name = json.optString("name", "导入的位置");
+                double lat = json.optDouble("lat", 0);
+                double lon = json.optDouble("lon", 0);
+
+                if (lat != 0 && lon != 0) {
+                    ContentValues contentValues = new ContentValues();
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_NAME, name);
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_LATITUDE, String.valueOf(lat));
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_LONGITUDE, String.valueOf(lon));
+                    contentValues.put(DataBaseFavorites.DB_COLUMN_TIMESTAMP, System.currentTimeMillis());
+
+                    DataBaseFavorites.saveFavorite(mFavoritesDB, contentValues);
+                    XLog.i("导入坐标: " + name + " (" + lat + ", " + lon + ")");
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            XLog.e("处理导入项失败: " + e.getMessage());
+        }
+        return false;
     }
 
     /**
@@ -4023,6 +4881,13 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         try {
             String fileName = (name != null ? name : "QR") + "_" + System.currentTimeMillis() + ".png";
             String savePath = com.river.gowithamap.utils.FileSaveManager.getSavePath(this);
+            
+            // 确保目录存在
+            File dir = new File(savePath);
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            
             File file = new File(savePath, fileName);
 
             java.io.FileOutputStream fos = new java.io.FileOutputStream(file);
@@ -4033,7 +4898,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             XLog.i("二维码已保存到: " + file.getAbsolutePath());
         } catch (Exception e) {
             XLog.e("保存二维码失败: " + e.getMessage());
-            GoUtils.DisplayToast(this, "保存失败");
+            GoUtils.DisplayToast(this, "保存失败: " + e.getMessage());
         }
     }
 
@@ -4227,6 +5092,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             })
             .create();
         menuDialog.show();
+        GoUtils.setDialogWidth(menuDialog);
     }
     
     /**
@@ -4250,26 +5116,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
      * 分享固定圆
      */
     private void sharePinnedCircle(String name, double lat, double lon, double radius) {
-        String[] options = {"生成二维码", "保存为文件"};
-        
-        new AlertDialog.Builder(this)
-            .setTitle("分享区域")
-            .setItems(options, (dialog, which) -> {
-                if (which == 0) {
-                    // 生成二维码
-                    generateQRCodeForPinnedCircle(name, lat, lon, radius);
-                } else {
-                    // 保存为文件
-                    savePinnedCircleToFile(name, lat, lon, radius);
-                }
-            })
-            .show();
-    }
-    
-    /**
-     * 为固定圆生成二维码
-     */
-    private void generateQRCodeForPinnedCircle(String name, double lat, double lon, double radius) {
         try {
             JSONObject circleData = new JSONObject();
             circleData.put("type", "circle");
@@ -4278,40 +5124,48 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             circleData.put("lon", lon);
             circleData.put("radius", radius);
             circleData.put("timestamp", System.currentTimeMillis());
-
-            showQRCodeDialog(circleData.toString(), name);
+            
+            String[] options = {"生成二维码", "保存为文件"};
+            new AlertDialog.Builder(this)
+                .setTitle("分享区域")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        showQRCodeDialog(circleData.toString(), name);
+                    } else {
+                        saveJsonToFile(circleData, name, "区域数据");
+                    }
+                })
+                .show();
         } catch (JSONException e) {
-            XLog.e("生成二维码数据失败: " + e.getMessage());
-            GoUtils.DisplayToast(this, "生成二维码失败");
+            XLog.e("创建分享数据失败: " + e.getMessage());
+            GoUtils.DisplayToast(this, "分享失败");
         }
     }
     
     /**
-     * 将固定圆保存为文件
+     * 通用保存JSON到文件方法
      */
-    private void savePinnedCircleToFile(String name, double lat, double lon, double radius) {
+    private void saveJsonToFile(JSONObject jsonData, String fileNamePrefix, String shareTitle) {
         try {
-            JSONObject circleData = new JSONObject();
-            circleData.put("type", "circle");
-            circleData.put("name", name);
-            circleData.put("lat", lat);
-            circleData.put("lon", lon);
-            circleData.put("radius", radius);
-            circleData.put("timestamp", System.currentTimeMillis());
+            String fileName = fileNamePrefix + "_" + System.currentTimeMillis() + ".json";
+            String savePath = com.river.gowithamap.utils.FileSaveManager.getSavePath(this);
             
-            File file = new File(getExternalFilesDir("Regions"), "region_" + System.currentTimeMillis() + ".json");
+            // 确保目录存在
+            File dir = new File(savePath);
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            
+            File file = new File(savePath, fileName);
             FileWriter writer = new FileWriter(file);
-            writer.write(circleData.toString(2));
+            writer.write(jsonData.toString(2));
             writer.close();
-            
-            GoUtils.DisplayToast(this, "区域已保存: " + file.getName());
-            ShareUtils.shareFile(this, file, "区域数据");
-        } catch (JSONException e) {
-            XLog.e("创建JSON失败: " + e.getMessage());
-            GoUtils.DisplayToast(this, "保存失败");
-        } catch (IOException e) {
-            XLog.e("保存区域失败: " + e.getMessage());
-            GoUtils.DisplayToast(this, "保存失败");
+
+            GoUtils.DisplayToast(this, "已保存到: " + file.getAbsolutePath());
+            ShareUtils.shareFile(this, file, shareTitle);
+        } catch (Exception e) {
+            XLog.e("保存文件失败: " + e.getMessage());
+            GoUtils.DisplayToast(this, "保存失败: " + e.getMessage());
         }
     }
     
@@ -4461,13 +5315,13 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     }
 
     /**
-     * 显示标记点的操作菜单（收藏、分享、固定）
+     * 显示标记点的操作菜单（收藏、分享、设置区域、固定）
      * UI风格与点击圆操作一致
      */
     private void showMarkerActionMenu() {
         if (mMarkLatLngMap == null) return;
 
-        String[] options = {"收藏", "分享", "固定"};
+        String[] options = {"收藏", "分享", "设置区域", "固定"};
         // 显示格式：坐标：经度 纬度
         String coordText = String.format("坐标：%.6f %.6f", mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
 
@@ -4483,13 +5337,17 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     case 1: // 分享 - 使用与固定圆相同的选项
                         shareCurrentMarkerLikeCircle();
                         break;
-                    case 2: // 固定 - 弹窗输入名称
+                    case 2: // 设置区域 - 以当前点为中心画临时圆
+                        showSetRegionDialog(mMarkLatLngMap.latitude, mMarkLatLngMap.longitude, false);
+                        break;
+                    case 3: // 固定 - 弹窗输入名称
                         pinCurrentMarker();
                         break;
                 }
             })
             .create();
         menuDialog.show();
+        GoUtils.setDialogWidth(menuDialog);
     }
 
     /**
@@ -4560,7 +5418,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     generateQRCodeForCurrentMarker(jsonData.toString(), locationName);
                 } else {
                     // 保存为文件
-                    saveCurrentMarkerToFile(jsonData);
+                    saveJsonToFile(jsonData, locationName, "坐标数据");
                 }
             })
             .setNegativeButton("取消", null)
@@ -4568,70 +5426,90 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     }
 
     /**
-     * 显示分享位置对话框（用于收藏列表）
+     * 显示批量分享对话框
      */
-    private void showShareLocationDialog(String name, double lat, double lon) {
-        String shareText = String.format("位置: %s\n坐标: %.6f, %.6f", name, lat, lon);
+    private void showBatchShareDialog(List<Map<String, Object>> items, String typeName) {
+        // 构建分享文本
+        StringBuilder shareTextBuilder = new StringBuilder();
+        shareTextBuilder.append("批量分享").append(typeName).append(" (").append(items.size()).append(" 个)\n\n");
 
-        // 创建JSON数据
-        JSONObject jsonData = new JSONObject();
-        try {
-            jsonData.put("type", "location");
-            jsonData.put("name", name);
-            jsonData.put("lat", lat);
-            jsonData.put("lon", lon);
-        } catch (JSONException e) {
-            XLog.e("创建JSON失败: " + e.getMessage());
+        // 创建JSON数组
+        JSONArray jsonArray = new JSONArray();
+
+        for (int i = 0; i < items.size(); i++) {
+            Map<String, Object> item = items.get(i);
+            String name = (String) item.get("name");
+
+            if (typeName.equals("坐标")) {
+                double lat = (double) item.get("lat");
+                double lon = (double) item.get("lon");
+                shareTextBuilder.append(i + 1).append(". ").append(name).append("\n");
+                shareTextBuilder.append("   坐标: ").append(String.format("%.6f, %.6f", lat, lon)).append("\n\n");
+
+                // 添加到JSON数组
+                JSONObject jsonItem = new JSONObject();
+                try {
+                    jsonItem.put("type", "location");
+                    jsonItem.put("name", name);
+                    jsonItem.put("lat", lat);
+                    jsonItem.put("lon", lon);
+                    jsonArray.put(jsonItem);
+                } catch (JSONException e) {
+                    XLog.e("创建JSON失败: " + e.getMessage());
+                }
+            } else {
+                double lat = (double) item.get("lat");
+                double lon = (double) item.get("lon");
+                double radius = (double) item.get("radius");
+                shareTextBuilder.append(i + 1).append(". ").append(name).append("\n");
+                shareTextBuilder.append("   中心: ").append(String.format("%.6f, %.6f", lat, lon)).append("\n");
+                shareTextBuilder.append("   半径: ").append(String.format("%.0f", radius)).append(" 米\n\n");
+
+                // 添加到JSON数组
+                JSONObject jsonItem = new JSONObject();
+                try {
+                    jsonItem.put("type", "circle");
+                    jsonItem.put("name", name);
+                    jsonItem.put("lat", lat);
+                    jsonItem.put("lon", lon);
+                    jsonItem.put("radius", radius);
+                    jsonArray.put(jsonItem);
+                } catch (JSONException e) {
+                    XLog.e("创建JSON失败: " + e.getMessage());
+                }
+            }
         }
 
+        // 创建外层JSON对象
+        JSONObject batchJson = new JSONObject();
+        try {
+            batchJson.put("type", "batch");
+            batchJson.put("count", items.size());
+            batchJson.put("itemType", typeName.equals("坐标") ? "locations" : "circles");
+            batchJson.put("items", jsonArray);
+        } catch (JSONException e) {
+            XLog.e("创建批量JSON失败: " + e.getMessage());
+        }
+
+        String shareText = shareTextBuilder.toString();
+        String jsonString = batchJson.toString();
+
         new AlertDialog.Builder(this)
-                .setTitle("分享位置")
+                .setTitle("批量分享 " + items.size() + " 个" + typeName)
                 .setItems(new String[]{"分享文本", "生成二维码", "保存为文件"}, (dialog, which) -> {
                     if (which == 0) {
-                        ShareUtils.shareText(this, "分享位置", shareText);
+                        ShareUtils.shareText(this, "批量分享" + typeName, shareText);
                     } else if (which == 1) {
-                        generateQRCodeForCurrentMarker(jsonData.toString(), name);
+                        generateQRCodeForCurrentMarker(jsonString, "批量分享" + typeName);
                     } else {
-                        saveCurrentMarkerToFile(jsonData);
+                        saveJsonToFile(batchJson, "批量" + typeName, "批量" + typeName + "数据");
                     }
                 })
                 .show();
     }
 
     /**
-     * 显示分享区域对话框（用于收藏列表）
-     */
-    private void showShareRegionDialog(String name, double lat, double lon, double radius) {
-        String shareText = String.format("区域: %s\n中心: %.6f, %.6f\n半径: %.0f米", name, lat, lon, radius);
-
-        // 创建JSON数据
-        JSONObject jsonData = new JSONObject();
-        try {
-            jsonData.put("type", "circle");
-            jsonData.put("name", name);
-            jsonData.put("lat", lat);
-            jsonData.put("lon", lon);
-            jsonData.put("radius", radius);
-        } catch (JSONException e) {
-            XLog.e("创建JSON失败: " + e.getMessage());
-        }
-
-        new AlertDialog.Builder(this)
-                .setTitle("分享区域")
-                .setItems(new String[]{"分享文本", "生成二维码", "保存为文件"}, (dialog, which) -> {
-                    if (which == 0) {
-                        ShareUtils.shareText(this, "分享区域", shareText);
-                    } else if (which == 1) {
-                        generateQRCodeForCurrentMarker(jsonData.toString(), name);
-                    } else {
-                        saveCurrentMarkerToFile(jsonData);
-                    }
-                })
-                .show();
-    }
-
-    /**
-     * 显示固定位置的操作菜单（修改名称、收藏、分享、取消固定）
+     * 显示固定位置的操作菜单（修改名称、收藏、分享、设置区域、取消固定）
      */
     private void showPinnedLocationActionMenu(int index) {
         if (index < 0 || index >= mPinnedLocationData.size()) return;
@@ -4641,7 +5519,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         double lat = (double) data.get("lat");
         double lon = (double) data.get("lon");
 
-        String[] options = {"修改名称", "收藏", "分享", "取消固定"};
+        String[] options = {"修改名称", "收藏", "分享", "设置区域", "取消固定"};
         String coordText = String.format("已固定: %s\n%.6f, %.6f", name, lon, lat);
 
         AlertDialog menuDialog = new AlertDialog.Builder(this)
@@ -4659,13 +5537,17 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     case 2: // 分享
                         shareLocation(name, lon, lat);
                         break;
-                    case 3: // 取消固定
+                    case 3: // 设置区域 - 以当前点为中心画固定圆
+                        showSetRegionDialog(lat, lon, true);
+                        break;
+                    case 4: // 取消固定
                         unpinLocation(index);
                         break;
                 }
             })
             .create();
         menuDialog.show();
+        GoUtils.setDialogWidth(menuDialog);
     }
 
     /**
@@ -4732,6 +5614,109 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             })
             .setNegativeButton("取消", null)
             .show();
+    }
+
+    /**
+     * 显示设置区域对话框
+     * @param lat 中心点纬度
+     * @param lon 中心点经度
+     * @param isPinned 是否为固定点（决定画出的是固定区域还是临时区域）
+     */
+    private void showSetRegionDialog(double lat, double lon, boolean isPinned) {
+        // 创建简单的输入对话框
+        EditText etInput = new EditText(this);
+        etInput.setHint("请输入半径（km）");
+        etInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        etInput.setPadding(padding, padding, padding, padding);
+
+        new AlertDialog.Builder(this)
+            .setTitle(isPinned ? "设置固定区域" : "设置临时区域")
+            .setView(etInput)
+            .setPositiveButton("确定", (dialog, which) -> {
+                String radiusStr = etInput.getText().toString().trim();
+                if (radiusStr.isEmpty()) {
+                    GoUtils.DisplayToast(this, "请输入半径");
+                    return;
+                }
+                
+                try {
+                    double radiusKm = Double.parseDouble(radiusStr);
+                    if (radiusKm <= 0) {
+                        GoUtils.DisplayToast(this, "半径必须大于0");
+                        return;
+                    }
+                    
+                    // 将km转换为米
+                    double radiusM = radiusKm * 1000;
+                    
+                    if (isPinned) {
+                        // 固定点：画出固定圆（深蓝色）
+                        drawPinnedCircleFromPoint(lat, lon, radiusM);
+                    } else {
+                        // 临时点：画出临时圆（黄色）
+                        drawTempCircleFromPoint(lat, lon, radiusM);
+                    }
+                } catch (NumberFormatException e) {
+                    GoUtils.DisplayToast(this, "请输入有效的数字");
+                }
+            })
+            .setNegativeButton("取消", null)
+            .show();
+    }
+    
+    /**
+     * 从点坐标绘制临时圆（黄色）
+     */
+    private void drawTempCircleFromPoint(double lat, double lon, double radius) {
+        LatLng center = new LatLng(lat, lon);
+        
+        // 绘制黄色临时圆
+        Circle circle = mAMap.addCircle(new CircleOptions()
+            .center(center)
+            .radius(radius)
+            .fillColor(0x55FFFF00) // 黄色半透明填充
+            .strokeColor(0xFFCCCC00) // 黄色边框
+            .strokeWidth(2));
+        
+        // 添加到多点定位列表中管理（作为临时圆）
+        mMultiPointCircles.add(circle);
+        mMultiPointCenters.add(center);
+        mMultiPointRadius.add(radius);
+        
+        // 添加中心标记
+        Marker marker = mAMap.addMarker(new MarkerOptions()
+            .position(center)
+            .title("临时区域中心")
+            .snippet("半径: " + String.format("%.0f", radius) + "米")
+            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW)));
+        mMultiPointMarkers.add(marker);
+        
+        GoUtils.DisplayToast(this, "临时区域已设置，半径: " + String.format("%.0f", radius) + "米");
+        XLog.i("绘制临时圆: 中心(" + lat + ", " + lon + "), 半径: " + radius + "米");
+    }
+    
+    /**
+     * 从点坐标绘制固定圆（深蓝色）
+     */
+    private void drawPinnedCircleFromPoint(double lat, double lon, double radius) {
+        String regionName = "区域_" + System.currentTimeMillis();
+        
+        // 保存到固定圆数据库
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(DataBasePinnedCircles.DB_COLUMN_NAME, regionName);
+        contentValues.put(DataBasePinnedCircles.DB_COLUMN_CENTER_LAT, String.valueOf(lat));
+        contentValues.put(DataBasePinnedCircles.DB_COLUMN_CENTER_LON, String.valueOf(lon));
+        contentValues.put(DataBasePinnedCircles.DB_COLUMN_RADIUS, String.valueOf(radius));
+        contentValues.put(DataBasePinnedCircles.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
+        
+        DataBasePinnedCircles.savePinnedCircle(mPinnedCirclesDB, contentValues);
+        
+        // 绘制固定圆
+        drawPinnedCircle(regionName, lat, lon, radius);
+        
+        GoUtils.DisplayToast(this, "固定区域已设置: " + regionName);
+        XLog.i("绘制固定圆: " + regionName + " 中心(" + lat + ", " + lon + "), 半径: " + radius + "米");
     }
 
     /**
@@ -4832,7 +5817,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 } else if (which == 1) {
                     generateQRCodeForCurrentMarker(jsonData.toString(), name);
                 } else {
-                    saveCurrentMarkerToFile(jsonData);
+                    saveJsonToFile(jsonData, name, "坐标数据");
                 }
             })
             .show();
@@ -4870,7 +5855,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     generateQRCodeForCurrentMarker(jsonData.toString(), locationName);
                 } else {
                     // 保存为文件
-                    saveCurrentMarkerToFile(jsonData);
+                    saveJsonToFile(jsonData, locationName, "坐标数据");
                 }
             })
             .setNegativeButton("取消", null)
@@ -4920,29 +5905,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     }
 
     /**
-     * 保存当前标记点到文件
-     */
-    private void saveCurrentMarkerToFile(JSONObject jsonData) {
-        try {
-            String fileName = (mMarkName != null ? mMarkName : "位置") + "_" + System.currentTimeMillis() + ".json";
-
-            String savePath = com.river.gowithamap.utils.FileSaveManager.getSavePath(this);
-            java.io.File file = new java.io.File(savePath, fileName);
-
-            java.io.FileWriter writer = new java.io.FileWriter(file);
-            writer.write(jsonData.toString(2));
-            writer.close();
-
-            GoUtils.DisplayToast(this, "已保存到: " + file.getAbsolutePath());
-            ShareUtils.shareFile(this, file, "坐标数据");
-
-        } catch (Exception e) {
-            XLog.e("保存文件失败: " + e.getMessage());
-            GoUtils.DisplayToast(this, "保存失败: " + e.getMessage());
-        }
-    }
-
-    /**
      * 在地图上显示固定位置标记
      */
     private void showPinnedLocationOnMap(String name, double lat, double lon) {
@@ -4974,6 +5936,176 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     }
 
     /**
+     * 在地图上显示固定区域
+     */
+    private void showPinnedRegionOnMap(String name, double lat, double lon, double radius) {
+        LatLng center = new LatLng(lat, lon);
+
+        // 绘制固定圆（深蓝色）
+        CircleOptions circleOptions = new CircleOptions()
+                .center(center)
+                .radius(radius)
+                .strokeWidth(5)
+                .strokeColor(0xFF00008B) // 深蓝色边框
+                .fillColor(0x5500008B); // 深蓝色填充
+
+        Circle circle = mAMap.addCircle(circleOptions);
+
+        // 添加中心点标记
+        MarkerOptions markerOptions = new MarkerOptions()
+                .position(center)
+                .title(name)
+                .snippet("半径: " + String.format("%.0f", radius) + "米 [已固定]")
+                .draggable(false)
+                .anchor(0.5f, 0.5f);
+
+        Marker marker = mAMap.addMarker(markerOptions);
+
+        // 添加到固定列表
+        mPinnedCircles.add(circle);
+        mPinnedCircleMarkers.add(marker);
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("name", name);
+        data.put("lat", lat);
+        data.put("lon", lon);
+        data.put("radius", radius);
+        data.put("circle", circle);
+        data.put("marker", marker);
+
+        mPinnedCircleData.add(data);
+
+        // 移动到该区域
+        mAMap.animateCamera(CameraUpdateFactory.newLatLngZoom(center, calculateZoomLevel(radius)));
+
+        XLog.i("显示固定区域: " + name + " (" + lat + ", " + lon + "), 半径: " + radius + "米");
+    }
+
+    /**
+     * 处理取消固定坐标点（从固定管理返回）
+     */
+    private void handleUnpinLocation(String name, double lat, double lon) {
+        // 在固定列表中查找该坐标点
+        int index = -1;
+        for (int i = 0; i < mPinnedLocationData.size(); i++) {
+            Map<String, Object> data = mPinnedLocationData.get(i);
+            String pinnedName = (String) data.get("name");
+            if (pinnedName.equals(name)) {
+                index = i;
+                break;
+            }
+        }
+
+        if (index < 0) {
+            XLog.w("未找到固定坐标点: " + name);
+            return;
+        }
+
+        Marker marker = mPinnedLocationMarkers.get(index);
+
+        // 将标记变回未固定状态（蓝色图标）
+        marker.setIcon(mMapIndicator);
+        marker.setTitle(name);
+        marker.setSnippet(String.format("%.6f, %.6f", marker.getPosition().longitude, marker.getPosition().latitude));
+        marker.setObject("temp_location"); // 重新设置为临时标记
+
+        // 从固定列表移除
+        mPinnedLocationMarkers.remove(index);
+        mPinnedLocationData.remove(index);
+
+        // 分配新的时间戳给这个取消固定的坐标（作为新的临时坐标）
+        long newTimestamp = System.currentTimeMillis();
+
+        // 检查是否存在其他临时坐标，如果存在则比较时间戳，清除较早的
+        if (sTempMarker != null && sTempMarker != marker && sTempMarkerTimestamp > 0) {
+            sTempMarker.remove();
+            XLog.i("取消固定：已存在的临时坐标时间戳 " + sTempMarkerTimestamp + " < 新临时坐标时间戳 " + newTimestamp + "，清除已存在的");
+        }
+        if (mCurrentLocationMarker != null && mCurrentLocationMarker != marker && !mIsCurrentLocationPinned) {
+            mCurrentLocationMarker.remove();
+        }
+
+        // 设置为当前未固定标记（成为新的临时坐标，使用新的时间戳）
+        mCurrentLocationMarker = marker;
+        sTempMarker = marker;
+        mCurrentLocationMarkerTimestamp = newTimestamp;
+        sTempMarkerTimestamp = newTimestamp;
+        mIsCurrentLocationPinned = false;
+        mMarkLatLngMap = marker.getPosition();
+        mMarkName = name;
+
+        GoUtils.DisplayToast(this, "已取消固定: " + name);
+        XLog.i("取消固定位置: " + name + ", 新临时坐标时间戳: " + newTimestamp);
+    }
+
+    /**
+     * 处理取消固定圆（从固定管理返回）
+     */
+    private void handleUnpinCircle(String name, double lat, double lon, double radius) {
+        // 在固定列表中查找该圆
+        int index = -1;
+        for (int i = 0; i < mPinnedCircleData.size(); i++) {
+            Map<String, Object> data = mPinnedCircleData.get(i);
+            String pinnedName = (String) data.get("name");
+            if (pinnedName.equals(name)) {
+                index = i;
+                break;
+            }
+        }
+
+        if (index < 0) {
+            XLog.w("未找到固定圆: " + name);
+            return;
+        }
+
+        // 从固定列表移除（但保留在地图上作为临时圆）
+        Circle circle = mPinnedCircles.get(index);
+        Marker marker = mPinnedCircleMarkers.get(index);
+
+        // 从固定列表移除
+        mPinnedCircles.remove(index);
+        mPinnedCircleMarkers.remove(index);
+        mPinnedCircleData.remove(index);
+
+        // 将圆变回临时圆状态（黄色）
+        circle.setStrokeColor(0xFFCCCC00); // 黄色边框
+        circle.setFillColor(0x55FFFF00); // 黄色填充
+
+        // 将圆添加到多点定位列表（作为临时圆管理）
+        LatLng center = new LatLng(lat, lon);
+        mMultiPointCircles.add(circle);
+        mMultiPointCenters.add(center);
+        mMultiPointRadius.add(radius);
+        mMultiPointMarkers.add(marker);
+
+        // 分配新的时间戳给这个取消固定的圆（作为新的临时圆）
+        long newTimestamp = System.currentTimeMillis();
+
+        // 检查是否存在其他临时圆，如果存在则比较时间戳，清除较早的
+        if (mSelectedCircle != null && !mIsSelectedCirclePinned && sTempCircleTimestamp > 0) {
+            mSelectedCircle.setStrokeColor(0xFFCCCC00);
+            mSelectedCircle.setFillColor(0x55FFFF00);
+            XLog.i("取消固定圆：已存在的临时圆时间戳 " + sTempCircleTimestamp + " < 新临时圆时间戳 " + newTimestamp + "，清除已存在的");
+        }
+
+        // 设置当前选中的圆为这个取消固定的圆
+        mSelectedCircle = circle;
+        mSelectedCircleIndex = mMultiPointCircles.size() - 1;
+        mSelectedCircleCenter = center;
+        mSelectedCircleRadius = radius;
+        mIsSelectedCirclePinned = false;
+        mSelectedCircleTimestamp = newTimestamp;
+        sTempCircleTimestamp = newTimestamp;
+
+        // 更新标记为未固定状态
+        marker.setTitle(name);
+        marker.setSnippet("半径: " + String.format("%.0f", radius) + "米");
+
+        GoUtils.DisplayToast(this, "已取消固定: " + name);
+        XLog.i("取消固定圆: " + name + ", 变为临时圆, 时间戳: " + newTimestamp);
+    }
+
+    /**
      * 将View转换为Bitmap
      */
     private Bitmap createBitmapFromView(View view) {
@@ -4987,14 +6119,37 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
 
     /**
      * 创建固定标记的图标
+     * 样式与区域文字框类似，但使用红色主题
      */
     private BitmapDescriptor createPinnedMarkerIcon(String name) {
-        View markerView = LayoutInflater.from(this).inflate(R.layout.marker_with_text, null);
-        TextView tvText = markerView.findViewById(R.id.marker_text);
-        tvText.setText(name);
-        tvText.setTextColor(Color.WHITE);
-        tvText.setBackgroundResource(R.drawable.bg_marker_pinned);
-        return BitmapDescriptorFactory.fromBitmap(createBitmapFromView(markerView));
+        // 创建垂直布局的标记视图（与区域标记类似）
+        LinearLayout markerView = new LinearLayout(this);
+        markerView.setOrientation(LinearLayout.VERTICAL);
+        markerView.setGravity(Gravity.CENTER);
+        
+        // 名称文本（上方）- 红色背景
+        TextView nameView = new TextView(this);
+        nameView.setText(name);
+        nameView.setTextSize(12);
+        nameView.setTextColor(Color.WHITE);
+        nameView.setBackgroundColor(0xAAC62828); // 红色半透明背景（与区域深蓝色对应）
+        nameView.setPadding(10, 5, 10, 5);
+        nameView.setGravity(Gravity.CENTER);
+        nameView.setMaxWidth(200);
+        nameView.setEllipsize(TextUtils.TruncateAt.END);
+        nameView.setMaxLines(1);
+        markerView.addView(nameView);
+        
+        // 转换为BitmapDescriptor
+        markerView.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                          View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        markerView.layout(0, 0, markerView.getMeasuredWidth(), markerView.getMeasuredHeight());
+        
+        Bitmap bitmap = Bitmap.createBitmap(markerView.getMeasuredWidth(), markerView.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        markerView.draw(canvas);
+        
+        return BitmapDescriptorFactory.fromBitmap(bitmap);
     }
 
     /**
@@ -5058,6 +6213,184 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             })
             .setNegativeButton("取消", null)
             .show();
+    }
+
+    /**
+     * 自定义InfoWindow适配器
+     */
+    private class CustomInfoWindowAdapter implements AMap.InfoWindowAdapter {
+        private View mInfoWindowView;
+        private Marker mCurrentMarker;
+
+        @Override
+        public View getInfoWindow(Marker marker) {
+            mCurrentMarker = marker;
+            if (mInfoWindowView == null) {
+                mInfoWindowView = LayoutInflater.from(MainActivity.this).inflate(R.layout.info_window_location, null);
+            }
+            
+            // 设置 InfoWindow 宽度为屏幕宽度的60%
+            android.view.WindowManager windowManager = (android.view.WindowManager) getSystemService(Context.WINDOW_SERVICE);
+            android.view.Display display = windowManager.getDefaultDisplay();
+            android.graphics.Point size = new android.graphics.Point();
+            display.getSize(size);
+            int screenWidth = size.x;
+            mInfoWindowView.setLayoutParams(new android.view.ViewGroup.LayoutParams((int) (screenWidth * 0.6), 
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+            
+            bindInfoWindowData(marker);
+            return mInfoWindowView;
+        }
+
+        @Override
+        public View getInfoContents(Marker marker) {
+            // 使用自定义窗口，不返回内容视图
+            return null;
+        }
+
+        private void bindInfoWindowData(Marker marker) {
+            if (mInfoWindowView == null || marker == null) return;
+
+            // 获取视图
+            TextView tvLocationName = mInfoWindowView.findViewById(R.id.tv_location_name);
+            TextView tvAddress = mInfoWindowView.findViewById(R.id.tv_address);
+            TextView tvGcj02 = mInfoWindowView.findViewById(R.id.tv_gcj02);
+            TextView tvWgs84 = mInfoWindowView.findViewById(R.id.tv_wgs84);
+            View ivSimulationStatus = mInfoWindowView.findViewById(R.id.iv_simulation_status);
+            ImageView ivFavoriteStatus = mInfoWindowView.findViewById(R.id.iv_favorite_status);
+            LinearLayout layoutRegionInfo = mInfoWindowView.findViewById(R.id.layout_region_info);
+            TextView tvCenterPoint = mInfoWindowView.findViewById(R.id.tv_center_point);
+            TextView tvRadius = mInfoWindowView.findViewById(R.id.tv_radius);
+            ImageButton btnCopy = mInfoWindowView.findViewById(R.id.btn_copy);
+            ImageButton btnFavorite = mInfoWindowView.findViewById(R.id.btn_favorite);
+            ImageButton btnSimulate = mInfoWindowView.findViewById(R.id.btn_simulate);
+
+            // 设置位置名称
+            String rawTitle = marker.getTitle();
+            final String title = (rawTitle == null || rawTitle.isEmpty() || rawTitle.equals("位置")) 
+                ? "未命名位置" : rawTitle;
+            tvLocationName.setText(title);
+
+            // 获取坐标
+            final LatLng position = marker.getPosition();
+            final double lat = position.latitude;
+            final double lon = position.longitude;
+
+            // 转换为WGS84
+            double[] wgs84 = MapUtils.gcj02ToWgs84(lon, lat);
+
+            // 设置坐标显示
+            tvGcj02.setText(String.format("GCJ02: %.6f, %.6f", lon, lat));
+            tvWgs84.setText(String.format("WGS84: %.6f, %.6f", wgs84[0], wgs84[1]));
+
+            // 检查是否是固定区域（通过marker的object判断）
+            boolean isRegion = false;
+            double radius = 0;
+            Object obj = marker.getObject();
+            if (obj instanceof Map) {
+                Map<String, Object> data = (Map<String, Object>) obj;
+                if (data.containsKey("radius")) {
+                    isRegion = true;
+                    radius = (double) data.get("radius");
+                }
+            }
+
+            // 检查是否是模拟状态
+            boolean isSimulating = isMockServStart && mMarkLatLngMap != null 
+                && Math.abs(mMarkLatLngMap.latitude - lat) < 0.00001 
+                && Math.abs(mMarkLatLngMap.longitude - lon) < 0.00001;
+            ivSimulationStatus.setVisibility(isSimulating ? View.VISIBLE : View.GONE);
+            if (isSimulating) {
+                ivSimulationStatus.setBackgroundResource(R.drawable.circle_shape_pressed);
+            }
+
+            // 检查是否已收藏
+            final boolean[] isFavorited = {checkIsFavorited(lat, lon)};
+            ivFavoriteStatus.setVisibility(isFavorited[0] ? View.VISIBLE : View.GONE);
+            btnFavorite.setImageResource(isFavorited[0] ? R.drawable.ic_favorite : R.drawable.ic_favorite);
+            btnFavorite.setAlpha(isFavorited[0] ? 1.0f : 0.5f);
+
+            // 区域信息显示
+            if (isRegion) {
+                layoutRegionInfo.setVisibility(View.VISIBLE);
+                tvCenterPoint.setText(String.format("中心: %.3f, %.3f", lon, lat));
+                tvRadius.setText(String.format("半径: %.0fm", radius));
+            } else {
+                layoutRegionInfo.setVisibility(View.GONE);
+            }
+
+            // 设置地址（使用snippet）
+            String snippet = marker.getSnippet();
+            tvAddress.setText(snippet != null && !snippet.isEmpty() ? snippet : "暂无地址信息");
+
+            // 复制按钮点击
+            btnCopy.setOnClickListener(v -> {
+                String coordText = String.format("%.6f,%.6f", lon, lat);
+                android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                android.content.ClipData clip = android.content.ClipData.newPlainText("坐标", coordText);
+                cm.setPrimaryClip(clip);
+                GoUtils.DisplayToast(MainActivity.this, "坐标已复制");
+            });
+
+            // 收藏按钮点击
+            btnFavorite.setOnClickListener(v -> {
+                if (isFavorited[0]) {
+                    GoUtils.DisplayToast(MainActivity.this, "该位置已收藏");
+                } else {
+                    addMarkerToFavorite(marker, title, lat, lon);
+                    isFavorited[0] = true;
+                    ivFavoriteStatus.setVisibility(View.VISIBLE);
+                    btnFavorite.setAlpha(1.0f);
+                }
+            });
+
+            // 模拟按钮点击
+            btnSimulate.setOnClickListener(v -> {
+                // 更新当前标记
+                mMarkLatLngMap = position;
+                mMarkName = title;
+                // 调用模拟方法
+                doGoLocation(mInfoWindowView);
+            });
+        }
+    }
+
+    /**
+     * 检查位置是否已收藏
+     */
+    private boolean checkIsFavorited(double lat, double lon) {
+        try {
+            List<Map<String, Object>> favorites = getFavoritesData();
+            for (Map<String, Object> fav : favorites) {
+                double favLat = (double) fav.get("lat");
+                double favLon = (double) fav.get("lon");
+                if (Math.abs(favLat - lat) < 0.00001 && Math.abs(favLon - lon) < 0.00001) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            XLog.e("检查收藏状态失败: " + e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * 将标记添加到收藏
+     */
+    private void addMarkerToFavorite(Marker marker, String name, double lat, double lon) {
+        // 直接使用 GCJ02 坐标存储
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(DataBaseFavorites.DB_COLUMN_NAME, name);
+        contentValues.put(DataBaseFavorites.DB_COLUMN_LONGITUDE, String.valueOf(lon));
+        contentValues.put(DataBaseFavorites.DB_COLUMN_LATITUDE, String.valueOf(lat));
+        contentValues.put(DataBaseFavorites.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
+
+        DataBaseFavorites.saveFavorite(mFavoritesDB, contentValues);
+        GoUtils.DisplayToast(this, "已收藏: " + name);
+        XLog.i("添加收藏: " + name + " 坐标: " + lon + " " + lat);
+        
+        // 刷新InfoWindow显示
+        marker.showInfoWindow();
     }
 
 }

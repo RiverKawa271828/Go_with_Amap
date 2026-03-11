@@ -61,8 +61,7 @@ import com.amap.api.maps.model.Poi;
 import com.amap.api.services.help.Inputtips;
 import com.amap.api.services.help.InputtipsQuery;
 import com.amap.api.services.help.Tip;
-import com.river.gowithamap.database.DataBaseHistoryLocation;
-import com.river.gowithamap.HistoryActivity;
+import com.river.gowithamap.database.DataBaseSimulationRecords;
 import com.river.gowithamap.MainActivity;
 import com.river.gowithamap.R;
 import com.river.gowithamap.utils.GoUtils;
@@ -757,22 +756,19 @@ public class JoyStick extends View {
             mSearchView.onActionViewCollapsed();
             tips.setVisibility(VISIBLE);
 
-            // wgs84坐标
-            String wgs84LatLng = (String) ((TextView) view.findViewById(R.id.WGSLatLngText)).getText();
-            wgs84LatLng = wgs84LatLng.substring(wgs84LatLng.indexOf('[') + 1, wgs84LatLng.indexOf(']'));
-            String[] wgs84latLngStr = wgs84LatLng.split(" ");
-            String wgs84Longitude = wgs84latLngStr[0].substring(wgs84latLngStr[0].indexOf(':') + 1);
-            String wgs84Latitude = wgs84latLngStr[1].substring(wgs84latLngStr[1].indexOf(':') + 1);
-
-            mListener.onPositionInfo(Double.parseDouble(wgs84Longitude), Double.parseDouble(wgs84Latitude), mAltitude);
-
-            // 注意这里在选择位置之后需要刷新地图
-            String gcj02LatLng = (String) ((TextView) view.findViewById(R.id.BDLatLngText)).getText();
+            // 从WGSLatLngText获取GCJ02坐标（虽然id叫WGS但实际存储的是GCJ02）
+            String gcj02LatLng = (String) ((TextView) view.findViewById(R.id.WGSLatLngText)).getText();
             gcj02LatLng = gcj02LatLng.substring(gcj02LatLng.indexOf('[') + 1, gcj02LatLng.indexOf(']'));
             String[] gcj02LatLngStr = gcj02LatLng.split(" ");
             String gcj02Longitude = gcj02LatLngStr[0].substring(gcj02LatLngStr[0].indexOf(':') + 1);
             String gcj02Latitude = gcj02LatLngStr[1].substring(gcj02LatLngStr[1].indexOf(':') + 1);
+            
+            // 更新地图位置（使用GCJ02）
             mCurMapLngLat = new LatLng(Double.parseDouble(gcj02Latitude), Double.parseDouble(gcj02Longitude));
+            
+            // 转换为WGS84传给监听器（ServiceGo需要WGS84）
+            double[] wgs84 = MapUtils.gcj02ToWgs84(Double.parseDouble(gcj02Longitude), Double.parseDouble(gcj02Latitude));
+            mListener.onPositionInfo(wgs84[0], wgs84[1], mAltitude);
 
             GoUtils.DisplayToast(mContext, getResources().getString(R.string.app_location_ok));
         });
@@ -807,7 +803,7 @@ public class JoyStick extends View {
 
     private void fetchAllRecord() {
         Log.d("JOYSTICK", "fetchAllRecord START");
-        SQLiteDatabase mHistoryLocationDB = null;
+        SQLiteDatabase mSimulationDB = null;
         Cursor cursor = null;
 
         try {
@@ -815,28 +811,26 @@ public class JoyStick extends View {
             Log.d("JOYSTICK", "Clearing mAllRecord, size=" + mAllRecord.size());
             mAllRecord.clear();
             
-            Log.d("JOYSTICK", "Creating DataBaseHistoryLocation");
-            DataBaseHistoryLocation hisLocDBHelper = new DataBaseHistoryLocation(mContext.getApplicationContext());
+            Log.d("JOYSTICK", "Creating DataBaseSimulationRecords");
+            DataBaseSimulationRecords simDBHelper = new DataBaseSimulationRecords(mContext.getApplicationContext());
             
             Log.d("JOYSTICK", "Getting writable database");
-            mHistoryLocationDB = hisLocDBHelper.getWritableDatabase();
+            mSimulationDB = simDBHelper.getWritableDatabase();
             
             Log.d("JOYSTICK", "Querying database");
-            cursor = mHistoryLocationDB.query(DataBaseHistoryLocation.TABLE_NAME, null,
-                    DataBaseHistoryLocation.DB_COLUMN_ID + " > ?", new String[] {"0"},
-                    null, null, DataBaseHistoryLocation.DB_COLUMN_TIMESTAMP + " DESC", null);
+            cursor = mSimulationDB.query(DataBaseSimulationRecords.TABLE_NAME, null,
+                    DataBaseSimulationRecords.DB_COLUMN_ID + " > ?", new String[] {"0"},
+                    null, null, DataBaseSimulationRecords.DB_COLUMN_TIMESTAMP + " DESC", null);
 
             Log.d("JOYSTICK", "Cursor count=" + cursor.getCount());
             
-            // 获取列索引，避免硬编码
+            // 获取列索引
             Log.d("JOYSTICK", "Getting column indices");
-            int idIndex = cursor.getColumnIndexOrThrow(DataBaseHistoryLocation.DB_COLUMN_ID);
-            int locationIndex = cursor.getColumnIndexOrThrow(DataBaseHistoryLocation.DB_COLUMN_LOCATION);
-            int longitudeIndex = cursor.getColumnIndexOrThrow(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_WGS84);
-            int latitudeIndex = cursor.getColumnIndexOrThrow(DataBaseHistoryLocation.DB_COLUMN_LATITUDE_WGS84);
-            int timestampIndex = cursor.getColumnIndexOrThrow(DataBaseHistoryLocation.DB_COLUMN_TIMESTAMP);
-            int gcjLongitudeIndex = cursor.getColumnIndexOrThrow(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_CUSTOM);
-            int gcjLatitudeIndex = cursor.getColumnIndexOrThrow(DataBaseHistoryLocation.DB_COLUMN_LATITUDE_CUSTOM);
+            int idIndex = cursor.getColumnIndexOrThrow(DataBaseSimulationRecords.DB_COLUMN_ID);
+            int locationIndex = cursor.getColumnIndexOrThrow(DataBaseSimulationRecords.DB_COLUMN_LOCATION);
+            int longitudeIndex = cursor.getColumnIndexOrThrow(DataBaseSimulationRecords.DB_COLUMN_LONGITUDE);
+            int latitudeIndex = cursor.getColumnIndexOrThrow(DataBaseSimulationRecords.DB_COLUMN_LATITUDE);
+            int timestampIndex = cursor.getColumnIndexOrThrow(DataBaseSimulationRecords.DB_COLUMN_TIMESTAMP);
             Log.d("JOYSTICK", "Column indices OK");
 
             int rowCount = 0;
@@ -860,32 +854,25 @@ public class JoyStick extends View {
                 long TimeStamp = cursor.getLong(timestampIndex);
                 Log.d("JOYSTICK", "TimeStamp=" + TimeStamp);
                 
-                String GCJ02Longitude = cursor.getString(gcjLongitudeIndex);
-                Log.d("JOYSTICK", "GCJ02Longitude=" + GCJ02Longitude);
-                
-                String GCJ02Latitude = cursor.getString(gcjLatitudeIndex);
-                Log.d("JOYSTICK", "GCJ02Latitude=" + GCJ02Latitude);
-                
-                Log.d("TB", ID + "\t" + Location + "\t" + Longitude + "\t" + Latitude + "\t" + TimeStamp + "\t" + GCJ02Longitude + "\t" + GCJ02Latitude);
+                Log.d("TB", ID + "\t" + Location + "\t" + Longitude + "\t" + Latitude + "\t" + TimeStamp);
                 
                 Log.d("JOYSTICK", "Parsing BigDecimal");
                 BigDecimal bigDecimalLongitude = BigDecimal.valueOf(Double.parseDouble(Longitude));
                 BigDecimal bigDecimalLatitude = BigDecimal.valueOf(Double.parseDouble(Latitude));
-                BigDecimal bigDecimalGCJLongitude = BigDecimal.valueOf(Double.parseDouble(GCJ02Longitude));
-                BigDecimal bigDecimalGCJLatitude = BigDecimal.valueOf(Double.parseDouble(GCJ02Latitude));
                 
                 Log.d("JOYSTICK", "Setting scale");
                 double doubleLongitude = bigDecimalLongitude.setScale(11, RoundingMode.HALF_UP).doubleValue();
                 double doubleLatitude = bigDecimalLatitude.setScale(11, RoundingMode.HALF_UP).doubleValue();
-                double doubleGCJLongitude = bigDecimalGCJLongitude.setScale(11, RoundingMode.HALF_UP).doubleValue();
-                double doubleGCJLatitude = bigDecimalGCJLatitude.setScale(11, RoundingMode.HALF_UP).doubleValue();
+                
+                // 转换为WGS84坐标显示
+                double[] wgs84 = MapUtils.gcj02ToWgs84(doubleLongitude, doubleLatitude);
                 
                 Log.d("JOYSTICK", "Putting item data");
-                item.put(HistoryActivity.KEY_ID, Integer.toString(ID));
-                item.put(HistoryActivity.KEY_LOCATION, Location);
-                item.put(HistoryActivity.KEY_TIME, GoUtils.timeStamp2Date(Long.toString(TimeStamp)));
-                item.put(HistoryActivity.KEY_LNG_LAT_WGS, "[经度:" + doubleLongitude + " 纬度:" + doubleLatitude + "]");
-                item.put(HistoryActivity.KEY_LNG_LAT_CUSTOM, "[经度:" + doubleGCJLongitude + " 纬度:" + doubleGCJLatitude + "]");
+                item.put("id", Integer.toString(ID));
+                item.put("location", Location);
+                item.put("time", GoUtils.timeStamp2Date(Long.toString(TimeStamp)));
+                // 只保存GCJ02坐标
+                item.put("lat_lng", "[经度:" + doubleLongitude + " 纬度:" + doubleLatitude + "]");
                 
                 Log.d("JOYSTICK", "Adding item to mAllRecord");
                 mAllRecord.add(item);
@@ -896,8 +883,8 @@ public class JoyStick extends View {
             if (cursor != null) {
                 cursor.close();
             }
-            if (mHistoryLocationDB != null) {
-                mHistoryLocationDB.close();
+            if (mSimulationDB != null) {
+                mSimulationDB.close();
             }
             Log.d("JOYSTICK", "fetchAllRecord END SUCCESS, mAllRecord size=" + mAllRecord.size());
         } catch (Exception e) {
@@ -908,8 +895,8 @@ public class JoyStick extends View {
             if (cursor != null) {
                 try { cursor.close(); } catch (Exception ex) { }
             }
-            if (mHistoryLocationDB != null) {
-                try { mHistoryLocationDB.close(); } catch (Exception ex) { }
+            if (mSimulationDB != null) {
+                try { mSimulationDB.close(); } catch (Exception ex) { }
             }
         }
     }
@@ -939,8 +926,8 @@ public class JoyStick extends View {
                         mContext,
                         list,
                         R.layout.history_item,
-                        new String[]{HistoryActivity.KEY_ID, HistoryActivity.KEY_LOCATION, HistoryActivity.KEY_TIME, HistoryActivity.KEY_LNG_LAT_WGS, HistoryActivity.KEY_LNG_LAT_CUSTOM}, // 与下面数组元素要一一对应
-                        new int[]{R.id.LocationID, R.id.LocationText, R.id.TimeText, R.id.WGSLatLngText, R.id.BDLatLngText});
+                        new String[]{"id", "location", "time", "lat_lng"}, // 只使用GCJ02坐标
+                        new int[]{R.id.LocationID, R.id.LocationText, R.id.TimeText, R.id.WGSLatLngText});
                 Log.d("JOYSTICK", "Setting adapter");
                 mRecordListView.setAdapter(simAdapt);
                 Log.d("JOYSTICK", "showHistory END SUCCESS");

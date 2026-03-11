@@ -87,6 +87,19 @@ public class DataBaseFavorites extends SQLiteOpenHelper {
         }
     }
 
+    // 更新收藏名称
+    public static void updateFavoriteName(SQLiteDatabase sqLiteDatabase, String id, String newName) {
+        try {
+            ContentValues values = new ContentValues();
+            values.put(DB_COLUMN_NAME, newName);
+            values.put(DB_COLUMN_TIMESTAMP, System.currentTimeMillis());
+            sqLiteDatabase.update(TABLE_NAME, values, DB_COLUMN_ID + " = ?", new String[]{id});
+            XLog.i("收藏名称更新成功: " + id + " -> " + newName);
+        } catch (Exception e) {
+            XLog.e("DATABASE: 更新收藏名称错误: " + e.getMessage());
+        }
+    }
+
     // 获取所有收藏
     public static List<Map<String, Object>> getAllFavorites(SQLiteDatabase sqLiteDatabase) {
         List<Map<String, Object>> data = new ArrayList<>();

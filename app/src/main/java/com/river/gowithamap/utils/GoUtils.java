@@ -27,7 +27,27 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import android.view.WindowManager;
+import android.graphics.Point;
+
 public class GoUtils {
+
+    /**
+     * 设置对话框宽度为屏幕宽度的85%
+     * @param dialog AlertDialog 对话框
+     */
+    public static void setDialogWidth(AlertDialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        
+        WindowManager windowManager = (WindowManager) dialog.getContext().getSystemService(Context.WINDOW_SERVICE);
+        if (windowManager == null) return;
+        
+        Point size = new Point();
+        windowManager.getDefaultDisplay().getSize(size);
+        int screenWidth = size.x;
+        
+        dialog.getWindow().setLayout((int) (screenWidth * 0.85), WindowManager.LayoutParams.WRAP_CONTENT);
+    }
     public static boolean isDeveloperOptionsEnabled(Context context) {
         return Settings.Global.getInt(
                 context.getContentResolver(),

@@ -56,20 +56,19 @@ import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 
-import com.river.gowithamap.database.DataBaseHistoryLocation;
+import com.river.gowithamap.database.DataBaseSimulationRecords;
 import com.river.gowithamap.utils.GoUtils;
 
 public class HistoryActivity extends BaseActivity {
     public static final String KEY_ID = "KEY_ID";
     public static final String KEY_LOCATION = "KEY_LOCATION";
     public static final String KEY_TIME = "KEY_TIME";
-    public static final String KEY_LNG_LAT_WGS = "KEY_LNG_LAT_WGS";
-    public static final String KEY_LNG_LAT_CUSTOM = "KEY_LNG_LAT_CUSTOM";
+    public static final String KEY_LNG_LAT = "KEY_LNG_LAT";
 
     private ListView mRecordListView;
     private TextView noRecordText;
     private LinearLayout mSearchLayout;
-    private SQLiteDatabase mHistoryLocationDB;
+    private SQLiteDatabase mSimulationRecordsDB;
     private List<Map<String, Object>> mAllRecord;
     private SharedPreferences sharedPreferences;
 
@@ -102,7 +101,7 @@ public class HistoryActivity extends BaseActivity {
 
     @Override
     protected void onDestroy() {
-        mHistoryLocationDB.close();
+        mSimulationRecordsDB.close();
         super.onDestroy();
     }
 
@@ -143,8 +142,8 @@ public class HistoryActivity extends BaseActivity {
 
     private void initLocationDataBase() {
         try {
-            DataBaseHistoryLocation hisLocDBHelper = new DataBaseHistoryLocation(getApplicationContext());
-            mHistoryLocationDB = hisLocDBHelper.getWritableDatabase();
+            DataBaseSimulationRecords simDBHelper = new DataBaseSimulationRecords(getApplicationContext());
+            mSimulationRecordsDB = simDBHelper.getWritableDatabase();
         } catch (Exception e) {
             Log.e("HistoryActivity", "ERROR - initLocationDataBase");
         }
@@ -152,44 +151,39 @@ public class HistoryActivity extends BaseActivity {
         recordArchive();
     }
 
-    //sqlite 操作 查询所有记录
+    //sqlite 操作 查询所有模拟记录
     private List<Map<String, Object>> fetchAllRecord() {
         List<Map<String, Object>> data = new ArrayList<>();
 
         try {
-            Cursor cursor = mHistoryLocationDB.query(DataBaseHistoryLocation.TABLE_NAME, null,
-                    DataBaseHistoryLocation.DB_COLUMN_ID + " > ?", new String[] {"0"},
-                    null, null, DataBaseHistoryLocation.DB_COLUMN_TIMESTAMP + " DESC", null);
+            Cursor cursor = mSimulationRecordsDB.query(DataBaseSimulationRecords.TABLE_NAME, null,
+                    DataBaseSimulationRecords.DB_COLUMN_ID + " > ?", new String[] {"0"},
+                    null, null, DataBaseSimulationRecords.DB_COLUMN_TIMESTAMP + " DESC", null);
 
             while (cursor.moveToNext()) {
                 Map<String, Object> item = new HashMap<>();
-                int ID = cursor.getInt(0);
-                String Location = cursor.getString(1);
-                String Longitude = cursor.getString(2);
-                String Latitude = cursor.getString(3);
-                long TimeStamp = cursor.getInt(4);
-                String GCJ02Longitude = cursor.getString(5);
-                String GCJ02Latitude = cursor.getString(6);
-                Log.d("TB", ID + "\t" + Location + "\t" + Longitude + "\t" + Latitude + "\t" + TimeStamp + "\t" + GCJ02Longitude + "\t" + GCJ02Latitude);
+                int ID = cursor.getInt(cursor.getColumnIndexOrThrow(DataBaseSimulationRecords.DB_COLUMN_ID));
+                String Location = cursor.getString(cursor.getColumnIndexOrThrow(DataBaseSimulationRecords.DB_COLUMN_LOCATION));
+                String Longitude = cursor.getString(cursor.getColumnIndexOrThrow(DataBaseSimulationRecords.DB_COLUMN_LONGITUDE));
+                String Latitude = cursor.getString(cursor.getColumnIndexOrThrow(DataBaseSimulationRecords.DB_COLUMN_LATITUDE));
+                long TimeStamp = cursor.getLong(cursor.getColumnIndexOrThrow(DataBaseSimulationRecords.DB_COLUMN_TIMESTAMP));
+                Log.d("TB", ID + "\t" + Location + "\t" + Longitude + "\t" + Latitude + "\t" + TimeStamp);
+                
                 BigDecimal bigDecimalLongitude = BigDecimal.valueOf(Double.parseDouble(Longitude));
                 BigDecimal bigDecimalLatitude = BigDecimal.valueOf(Double.parseDouble(Latitude));
-                BigDecimal bigDecimalGCJLongitude = BigDecimal.valueOf(Double.parseDouble(GCJ02Longitude));
-                BigDecimal bigDecimalGCJLatitude = BigDecimal.valueOf(Double.parseDouble(GCJ02Latitude));
-                double doubleLongitude = bigDecimalLongitude.setScale(11, RoundingMode.HALF_UP).doubleValue();
-                double doubleLatitude = bigDecimalLatitude.setScale(11, RoundingMode.HALF_UP).doubleValue();
-                double doubleGCJLongitude = bigDecimalGCJLongitude.setScale(11, RoundingMode.HALF_UP).doubleValue();
-                double doubleGCJLatitude = bigDecimalGCJLatitude.setScale(11, RoundingMode.HALF_UP).doubleValue();
+                double doubleLongitude = bigDecimalLongitude.setScale(6, RoundingMode.HALF_UP).doubleValue();
+                double doubleLatitude = bigDecimalLatitude.setScale(6, RoundingMode.HALF_UP).doubleValue();
+                
                 item.put(KEY_ID, Integer.toString(ID));
                 item.put(KEY_LOCATION, Location);
                 item.put(KEY_TIME, GoUtils.timeStamp2Date(Long.toString(TimeStamp)));
-                item.put(KEY_LNG_LAT_WGS, "[经度:" + doubleLongitude + " 纬度:" + doubleLatitude + "]");
-                item.put(KEY_LNG_LAT_CUSTOM, "[经度:" + doubleGCJLongitude + " 纬度:" + doubleGCJLatitude + "]");
+                item.put(KEY_LNG_LAT, "[经度:" + doubleLongitude + " 纬度:" + doubleLatitude + "]");
                 data.add(item);
             }
             cursor.close();
         } catch (Exception e) {
             data.clear();
-            Log.e("HistoryActivity", "ERROR - fetchAllRecord");
+            Log.e("HistoryActivity", "ERROR - fetchAllRecord: " + e.getMessage());
         }
 
         return data;
@@ -205,8 +199,8 @@ public class HistoryActivity extends BaseActivity {
         final long weekSecond = (long) (limits * 24 * 60 * 60);
 
         try {
-            mHistoryLocationDB.delete(DataBaseHistoryLocation.TABLE_NAME,
-                    DataBaseHistoryLocation.DB_COLUMN_TIMESTAMP + " < ?", new String[] {Long.toString(System.currentTimeMillis() / 1000 - weekSecond)});
+            mSimulationRecordsDB.delete(DataBaseSimulationRecords.TABLE_NAME,
+                    DataBaseSimulationRecords.DB_COLUMN_TIMESTAMP + " < ?", new String[] {Long.toString(System.currentTimeMillis() / 1000 - weekSecond)});
         } catch (Exception e) {
             Log.e("HistoryActivity", "ERROR - recordArchive");
         }
@@ -217,10 +211,10 @@ public class HistoryActivity extends BaseActivity {
 
         try {
             if (ID <= -1) {
-                mHistoryLocationDB.delete(DataBaseHistoryLocation.TABLE_NAME,null, null);
+                mSimulationRecordsDB.delete(DataBaseSimulationRecords.TABLE_NAME,null, null);
             } else {
-                mHistoryLocationDB.delete(DataBaseHistoryLocation.TABLE_NAME,
-                        DataBaseHistoryLocation.DB_COLUMN_ID + " = ?", new String[] {Integer.toString(ID)});
+                mSimulationRecordsDB.delete(DataBaseSimulationRecords.TABLE_NAME,
+                        DataBaseSimulationRecords.DB_COLUMN_ID + " = ?", new String[] {Integer.toString(ID)});
             }
         } catch (Exception e) {
             deleteRet = false;
@@ -249,8 +243,8 @@ public class HistoryActivity extends BaseActivity {
                             HistoryActivity.this.getBaseContext(),
                             mAllRecord,
                             R.layout.history_item,
-                            new String[]{KEY_ID, KEY_LOCATION, KEY_TIME, KEY_LNG_LAT_WGS, KEY_LNG_LAT_CUSTOM}, // 与下面数组元素要一一对应
-                            new int[]{R.id.LocationID, R.id.LocationText, R.id.TimeText, R.id.WGSLatLngText, R.id.BDLatLngText});
+                            new String[]{KEY_ID, KEY_LOCATION, KEY_TIME, KEY_LNG_LAT}, // 与下面数组元素要一一对应
+                            new int[]{R.id.LocationID, R.id.LocationText, R.id.TimeText, R.id.WGSLatLngText});
                     mRecordListView.setAdapter(simAdapt);
                 } else {
                     List<Map<String, Object>> searchRet = new ArrayList<>();
@@ -264,8 +258,8 @@ public class HistoryActivity extends BaseActivity {
                                 HistoryActivity.this.getBaseContext(),
                                 searchRet,
                                 R.layout.history_item,
-                                new String[]{KEY_ID, KEY_LOCATION, KEY_TIME, KEY_LNG_LAT_WGS, KEY_LNG_LAT_CUSTOM}, // 与下面数组元素要一一对应
-                                new int[]{R.id.LocationID, R.id.LocationText, R.id.TimeText, R.id.WGSLatLngText, R.id.BDLatLngText});
+                                new String[]{KEY_ID, KEY_LOCATION, KEY_TIME, KEY_LNG_LAT}, // 与下面数组元素要一一对应
+                                new int[]{R.id.LocationID, R.id.LocationText, R.id.TimeText, R.id.WGSLatLngText});
                         mRecordListView.setAdapter(simAdapt);
                     } else {
                         GoUtils.DisplayToast(HistoryActivity.this, getResources().getString(R.string.history_error_search));
@@ -273,8 +267,8 @@ public class HistoryActivity extends BaseActivity {
                                 HistoryActivity.this.getBaseContext(),
                                 mAllRecord,
                                 R.layout.history_item,
-                                new String[]{KEY_ID, KEY_LOCATION, KEY_TIME, KEY_LNG_LAT_WGS, KEY_LNG_LAT_CUSTOM}, // 与下面数组元素要一一对应
-                                new int[]{R.id.LocationID, R.id.LocationText, R.id.TimeText, R.id.WGSLatLngText, R.id.BDLatLngText});
+                                new String[]{KEY_ID, KEY_LOCATION, KEY_TIME, KEY_LNG_LAT}, // 与下面数组元素要一一对应
+                                new int[]{R.id.LocationID, R.id.LocationText, R.id.TimeText, R.id.WGSLatLngText});
                         mRecordListView.setAdapter(simAdapt);
                     }
                 }
@@ -310,7 +304,7 @@ public class HistoryActivity extends BaseActivity {
         builder.setView(input);
         builder.setPositiveButton("确认", (dialog, whichButton) -> {
             String userInput = input.getText().toString();
-            DataBaseHistoryLocation.updateHistoryLocation(mHistoryLocationDB, locID, userInput);
+            DataBaseSimulationRecords.updateSimulationRecordName(mSimulationRecordsDB, locID, userInput);
             updateRecordList();
         });
         builder.setNegativeButton("取消", null);
@@ -346,7 +340,7 @@ public class HistoryActivity extends BaseActivity {
             String gcj02Latitude;
             String name;
             name = (String) ((TextView) view.findViewById(R.id.LocationText)).getText();
-            String gcj02LatLng = (String) ((TextView) view.findViewById(R.id.BDLatLngText)).getText();
+            String gcj02LatLng = (String) ((TextView) view.findViewById(R.id.WGSLatLngText)).getText();
             gcj02LatLng = gcj02LatLng.substring(gcj02LatLng.indexOf('[') + 1, gcj02LatLng.indexOf(']'));
             String[] latLngStr = gcj02LatLng.split(" ");
             gcj02Longitude = latLngStr[0].substring(latLngStr[0].indexOf(':') + 1);
@@ -370,31 +364,6 @@ public class HistoryActivity extends BaseActivity {
             this.finish();
         });
 
-        mRecordListView.setOnItemLongClickListener((parent, view, position, id) -> {
-            PopupMenu popupMenu = new PopupMenu(HistoryActivity.this, view);
-            popupMenu.setGravity(Gravity.END | Gravity.BOTTOM);
-            popupMenu.getMenu().add("编辑");
-            popupMenu.getMenu().add("删除");
-
-            popupMenu.setOnMenuItemClickListener(item -> {
-                String locID = ((TextView) view.findViewById(R.id.LocationID)).getText().toString();
-                String name = ((TextView) view.findViewById(R.id.LocationText)).getText().toString();
-                switch (item.getTitle().toString()) {
-                    case "编辑":
-                        showInputDialog(locID, name);
-                        return true;
-                    case "删除":
-                        showDeleteDialog(locID);
-                        return true;
-                    default:
-                        return false;
-                }
-            });
-
-            popupMenu.show();
-            return true;
-        });
-
         updateRecordList();
     }
 
@@ -415,8 +384,8 @@ public class HistoryActivity extends BaseActivity {
                         this,
                         mAllRecord,
                         R.layout.history_item,
-                        new String[]{KEY_ID, KEY_LOCATION, KEY_TIME, KEY_LNG_LAT_WGS, KEY_LNG_LAT_CUSTOM},
-                        new int[]{R.id.LocationID, R.id.LocationText, R.id.TimeText, R.id.WGSLatLngText, R.id.BDLatLngText});
+                        new String[]{KEY_ID, KEY_LOCATION, KEY_TIME, KEY_LNG_LAT},
+                        new int[]{R.id.LocationID, R.id.LocationText, R.id.TimeText, R.id.WGSLatLngText});
                 mRecordListView.setAdapter(simAdapt);
             } catch (Exception e) {
                 Log.e("HistoryActivity", "ERROR - updateRecordList");

@@ -2,7 +2,7 @@
     <string name="app_name">Go with Amap</string>
     <string name="app_settings">设置</string>
     <string name="app_history">历史记录</string>
-    <string name="app_author">River</string>
+    <string name="app_author">River 78物业保安队长</string>
     <string name="app_email"></string>
     <string name="app_statement">仅供学习使用，否则后果自负！</string>
     <string name="app_service_tips">Go with Amap 服务正在运行中</string>
@@ -111,9 +111,12 @@
     <string name="setting_theme_follow_system">跟随系统设置</string>
     
     <!-- 关于相关参数 -->
+    <string name="setting_group_data">数据管理</string>
+    <string name="setting_backup_data">备份数据</string>
+    <string name="setting_backup_data_summary">导出或导入所有数据（收藏、固定点/区域、设置等）</string>
     <string name="setting_group_about">关于</string>
     <string name="setting_version">版本号</string>
-    <string name="setting_author">开发者</string>
+    <string name="setting_author">River 78物业保安队长</string>
 
     <!-- 历史记录页面 -->
     <string name="history_expiration">7</string>
@@ -139,7 +142,7 @@
     <!-- 导航页 -->
     <string name="nav_drawer_open">打开导航菜单</string>
     <string name="nav_drawer_close">关闭导航菜单</string>
-    <string name="nav_menu_history">历史记录</string>
+    <string name="nav_menu_history">模拟记录</string>
     <string name="nav_menu_settings">设置</string>
     <string name="nav_menu_dev">开发人员选项</string>
     <string name="nav_menu_more">更多</string>
@@ -148,6 +151,7 @@
     <string name="nav_menu_contact">联系作者</string>
     <string name="nav_menu_multipoint">多点定位</string>
     <string name="nav_menu_favorites">我的收藏</string>
+    <string name="nav_menu_pinned_manager">固定管理</string>
     <string name="nav_app_tips">仅供学习使用，否则后果自负!</string>
     <string name="dialog_add_favorite_title">添加到收藏</string>
     <string name="dialog_add_favorite_hint">名称</string>
@@ -157,7 +161,7 @@
     <string name="switch_to_history">切换到历史</string>
     <string name="dialog_multipoint_title">多点定位</string>
     <string name="dialog_multipoint_radius_hint">请输入半径（千米）</string>
-    <string name="btn_history">历史</string>
+    <string name="btn_history">模拟</string>
     <string name="btn_favorites">收藏</string>
     <string name="dialog_multipoint_add_more">是否继续添加坐标？</string>
     <string name="dialog_multipoint_minimum">至少需要3个坐标才能计算相交区域</string>

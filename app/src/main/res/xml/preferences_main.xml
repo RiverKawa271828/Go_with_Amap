@@ -138,6 +138,17 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        app:title="@string/setting_group_data"
+        app:iconSpaceReserved="false">
+
+        <Preference
+            app:key="setting_backup_data"
+            app:title="@string/setting_backup_data"
+            app:summary="@string/setting_backup_data_summary"
+            app:iconSpaceReserved="false"/>
+    </PreferenceCategory>
+
+    <PreferenceCategory
         app:title="@string/setting_group_about"
         app:iconSpaceReserved="false">
 

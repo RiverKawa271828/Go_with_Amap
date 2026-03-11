@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="@dimen/radius_md"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@color/md_surfaceContainerLowest"
+    app:strokeWidth="1dp"
+    app:strokeColor="@color/md_outlineVariant"
+    android:layout_marginHorizontal="@dimen/spacing_xs"
+    android:layout_marginVertical="@dimen/spacing_xs">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- 内容区域 -->
+        <LinearLayout
+            android:id="@+id/item_content"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:padding="@dimen/spacing_md"
+            android:background="?android:attr/selectableItemBackground">
+
+            <!-- 文件名 - 允许多行显示 -->
+            <TextView
+                android:id="@+id/tv_file_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/text_body"
+                android:textColor="@color/textPrimary"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:lineSpacingMultiplier="1.1"
+                tools:text="GWA_20240101.zip" />
+
+            <!-- 时间 - 年月日时分秒 -->
+            <TextView
+                android:id="@+id/tv_file_time"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_xs"
+                android:textSize="@dimen/text_caption"
+                android:textColor="@color/textSecondary"
+                android:ellipsize="end"
+                android:maxLines="1"
+                tools:text="2024-01-01 12:30:45" />
+
+            <!-- 文件大小 -->
+            <TextView
+                android:id="@+id/tv_file_size"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_xs"
+                android:textSize="@dimen/text_caption"
+                android:textColor="@color/textTertiary"
+                android:ellipsize="end"
+                android:maxLines="1"
+                tools:text="1.5 MB" />
+
+        </LinearLayout>
+
+        <!-- 加密图标 -->
+        <ImageView
+            android:id="@+id/iv_encrypted"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="@dimen/spacing_sm"
+            android:src="@drawable/ic_lock_close"
+            android:visibility="gone" />
+
+        <!-- 竖向分隔条 -->
+        <View
+            android:id="@+id/divider"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="@dimen/spacing_sm"
+            android:layout_marginBottom="@dimen/spacing_sm"
+            android:background="@color/md_outlineVariant" />
+
+        <!-- 右侧选择区域 -->
+        <LinearLayout
+            android:id="@+id/item_select_area"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingHorizontal="@dimen/spacing_md"
+            android:background="?android:attr/selectableItemBackground">
+
+            <!-- 选择圆圈 -->
+            <ImageView
+                android:id="@+id/iv_check"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_check_circle"
+                android:contentDescription="选择" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>
