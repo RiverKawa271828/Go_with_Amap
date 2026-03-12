@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout 
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -7,27 +7,21 @@
     android:orientation="vertical"
     android:padding="@dimen/spacing_2xl">
 
-    <!-- 输入框 - 放在圆角背景内 -->
-    <com.google.android.material.card.MaterialCardView
+    <!-- Material TextInputLayout -->
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="@dimen/radius_md"
-        app:cardElevation="0dp"
-        app:cardBackgroundColor="@color/backgroundLight">
+        android:hint="@string/dialog_add_favorite_hint"
+        style="@style/AppTheme.TextInput">
 
-        <EditText
+        <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/et_favorite_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/dialog_add_favorite_hint"
             android:textSize="@dimen/text_body"
             android:maxLines="1"
-            android:inputType="text"
-            android:background="@null"
-            android:padding="@dimen/spacing_md"
-            android:textColor="@color/textPrimary"
-            android:textColorHint="@color/textSecondary" />
+            android:inputType="text" />
 
-    </com.google.android.material.card.MaterialCardView>
+    </com.google.android.material.textfield.TextInputLayout>
 
 </LinearLayout>

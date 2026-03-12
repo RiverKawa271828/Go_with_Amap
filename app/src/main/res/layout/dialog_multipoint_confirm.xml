@@ -1,27 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="@dimen/spacing_xl">
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/dialog_multipoint_add_more"
-        android:textSize="16sp"
+        android:textAppearance="?attr/textAppearanceTitleMedium"
+        android:textColor="@color/md_onSurface"
         android:gravity="center"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="@dimen/spacing_md" />
 
     <TextView
         android:id="@+id/tv_current_count"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="当前已选择 1 个坐标"
-        android:textSize="14sp"
-        android:textColor="@android:color/holo_blue_dark"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="@color/md_primary"
         android:gravity="center"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="@dimen/spacing_lg" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -29,21 +31,23 @@
         android:orientation="horizontal"
         android:gravity="center">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_finish"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="完成"
-            android:layout_marginEnd="8dp" />
+            android:layout_marginEnd="8dp"
+            style="@style/AppTheme.Button.Outlined" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_add_more"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/btn_add"
-            android:layout_marginStart="8dp" />
+            android:layout_marginStart="8dp"
+            style="@style/AppTheme.Button" />
 
     </LinearLayout>
 

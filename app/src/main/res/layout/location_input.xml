@@ -1,33 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:padding="16dp">
 
-    <EditText
-        android:id="@+id/joystick_longitude"
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_longitude"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
-        android:autofillHints="longitude"
         android:hint="@string/label_longitude"
-        android:inputType="numberDecimal"
-        android:digits="-0123456789."
-        android:minHeight="48dp" />
+        style="@style/AppTheme.TextInput">
 
-    <EditText
-        android:id="@+id/joystick_latitude"
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/joystick_longitude"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autofillHints="longitude"
+            android:inputType="numberDecimal"
+            android:digits="-0123456789." />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_latitude"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        android:autofillHints="latitude"
+        android:layout_marginTop="16dp"
         android:hint="@string/label_latitude"
-        android:inputType="numberDecimal"
-        android:digits="-0123456789."
-        android:minHeight="48dp" />
+        style="@style/AppTheme.TextInput">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/joystick_latitude"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autofillHints="latitude"
+            android:inputType="numberDecimal"
+            android:digits="-0123456789." />
+    </com.google.android.material.textfield.TextInputLayout>
 
     <RadioGroup
         android:id="@+id/RadioGroupMapType"
@@ -56,34 +67,24 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="8dp"
-        android:orientation="horizontal">
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal"
+        android:gravity="end">
 
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1" />
-
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/input_position_cancel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/input_position_cancel"/>
+            android:text="@string/input_position_cancel"
+            style="@style/AppTheme.Button.Outlined" />
 
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1" />
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/input_position_ok"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/input_position_ok"/>
-
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1" />
+            android:layout_marginStart="8dp"
+            android:text="@string/input_position_ok"
+            style="@style/AppTheme.Button" />
 
     </LinearLayout>
 </LinearLayout>

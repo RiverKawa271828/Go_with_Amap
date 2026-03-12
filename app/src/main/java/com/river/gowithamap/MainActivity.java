@@ -75,7 +75,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.SearchView;
-import androidx.appcompat.widget.Toolbar;
+
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.preference.PreferenceManager;
@@ -107,8 +107,11 @@ import com.amap.api.services.geocoder.RegeocodeResult;
 import com.amap.api.services.help.Inputtips;
 import com.amap.api.services.help.InputtipsQuery;
 import com.amap.api.services.help.Tip;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.snackbar.Snackbar;
 
 import org.json.JSONArray;
@@ -140,7 +143,6 @@ import com.river.gowithamap.database.DataBasePinnedCircles;
 import com.river.gowithamap.database.DataBasePinnedLocations;
 import com.river.gowithamap.utils.ShareUtils;
 import com.river.gowithamap.utils.GoUtils;
-import com.river.gowithamap.utils.MapCacheManager;
 import com.river.gowithamap.utils.MapUtils;
 import com.river.gowithamap.utils.FileSaveManager;
 
@@ -198,13 +200,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private SQLiteDatabase mSearchHistoryDB;
     /*============================== 收藏 相关 ==============================*/
     private SQLiteDatabase mFavoritesDB;
-    /*============================== SearchView 相关 ==============================*/
-    private SearchView searchView;
-    private ListView mSearchList;
-    private LinearLayout mSearchLayout;
-    private ListView mSearchHistoryList;
-    private LinearLayout mHistoryLayout;
-    private MenuItem searchItem;
+    /*============================== 搜索相关 ==============================*/
     private Inputtips mInputtips;
     /*============================== 更新 相关 ==============================*/
     private DownloadManager mDownloadManager = null;
@@ -269,14 +265,37 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        // 启动安全提示滚动
+        TextView tvSafetyTips = findViewById(R.id.tv_safety_tips);
+        if (tvSafetyTips != null) {
+            tvSafetyTips.setSelected(true);
+        }
 
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawer, toolbar, R.string.nav_drawer_open, R.string.nav_drawer_close);
+                this, drawer, null, R.string.nav_drawer_open, R.string.nav_drawer_close);
         drawer.addDrawerListener(toggle);
         toggle.syncState();
+
+        // 菜单按钮打开侧栏
+        ImageButton btnMenu = findViewById(R.id.btn_menu);
+        if (btnMenu != null) {
+            btnMenu.setOnClickListener(v -> {
+                if (drawer.isDrawerOpen(GravityCompat.START)) {
+                    drawer.closeDrawer(GravityCompat.START);
+                } else {
+                    drawer.openDrawer(GravityCompat.START);
+                }
+            });
+        }
+
+        // 搜索按钮点击事件
+        ImageButton btnSearch = findViewById(R.id.btn_search);
+        if (btnSearch != null) {
+            btnSearch.setOnClickListener(v -> {
+                showSearchDialog();
+            });
+        }
 
         XLog.i("MainActivity: onCreate");
 
@@ -308,8 +327,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         initStoreHistory();
         
         initCircleDatabases();
-
-        initSearchView();
 
         initUpdateVersion();
 
@@ -464,119 +481,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     }
 
     @Override
-    public boolean onCreateOptionsMenu(final Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        //找到searchView
-        searchItem = menu.findItem(R.id.action_search);
-        searchItem.setOnActionExpandListener(new  MenuItem.OnActionExpandListener() {
-            @Override
-            public boolean onMenuItemActionCollapse(MenuItem item) {
-                mSearchLayout.setVisibility(View.INVISIBLE);
-                mHistoryLayout.setVisibility(View.INVISIBLE);
-                return true;  // Return true to collapse action view
-            }
-            @Override
-            public boolean onMenuItemActionExpand(MenuItem item) {
-                mSearchLayout.setVisibility(View.INVISIBLE);
-                //展示搜索历史
-                List<Map<String, Object>> data = getSearchHistory();
-
-                if (!data.isEmpty()) {
-                    SimpleAdapter simAdapt = new SimpleAdapter(
-                            MainActivity.this,
-                            data,
-                            R.layout.search_item,
-                            new String[] {DataBaseHistorySearch.DB_COLUMN_KEY,
-                                    DataBaseHistorySearch.DB_COLUMN_DESCRIPTION,
-                                    DataBaseHistorySearch.DB_COLUMN_TIMESTAMP,
-                                    DataBaseHistorySearch.DB_COLUMN_IS_LOCATION,
-                                    DataBaseHistorySearch.DB_COLUMN_LONGITUDE_CUSTOM,
-                                    DataBaseHistorySearch.DB_COLUMN_LATITUDE_CUSTOM},
-                            new int[] {R.id.search_key,
-                                    R.id.search_description,
-                                    R.id.search_timestamp,
-                                    R.id.search_isLoc,
-                                    R.id.search_longitude,
-                                    R.id.search_latitude});
-                    mSearchHistoryList.setAdapter(simAdapt);
-                    mHistoryLayout.setVisibility(View.VISIBLE);
-                }
-
-                return true;  // Return true to expand action view
-            }
-        });
-
-        searchView = (SearchView) searchItem.getActionView();
-        searchView.setIconified(false);// 设置searchView处于展开状态
-        searchView.onActionViewExpanded();// 当展开无输入内容的时候，没有关闭的图标
-        searchView.setIconifiedByDefault(true);//默认为true在框内，设置false则在框外
-        searchView.setSubmitButtonEnabled(false);//显示提交按钮
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                try {
-                    String city = (mCurrentCity != null) ? mCurrentCity : "";
-                    XLog.i("搜索关键字: " + query + ", 城市: " + city);
-                    InputtipsQuery inputtipsQuery = new InputtipsQuery(query, city);
-                    inputtipsQuery.setCityLimit(true);
-                    mInputtips.setQuery(inputtipsQuery);
-                    mInputtips.requestInputtipsAsyn();
-                    //搜索历史 插表参数
-                    ContentValues contentValues = new ContentValues();
-                    contentValues.put(DataBaseHistorySearch.DB_COLUMN_KEY, query);
-                    contentValues.put(DataBaseHistorySearch.DB_COLUMN_DESCRIPTION, "搜索关键字");
-                    contentValues.put(DataBaseHistorySearch.DB_COLUMN_IS_LOCATION, DataBaseHistorySearch.DB_SEARCH_TYPE_KEY);
-                    contentValues.put(DataBaseHistorySearch.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
-
-                    DataBaseHistorySearch.saveHistorySearch(mSearchHistoryDB, contentValues);
-                    clearAllMapOverlays();
-                    mSearchLayout.setVisibility(View.INVISIBLE);
-                } catch (Exception e) {
-                    GoUtils.DisplayToast(MainActivity.this, getResources().getString(R.string.app_error_search));
-                    XLog.e("搜索异常: " + e.getMessage());
-                }
-
-                return true;
-            }
-
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                //当输入框内容改变的时候回调
-                //搜索历史置为不可见
-                mHistoryLayout.setVisibility(View.INVISIBLE);
-
-                if (newText != null && !newText.isEmpty()) {
-                    try {
-                        String city = (mCurrentCity != null) ? mCurrentCity : "";
-                        InputtipsQuery inputtipsQuery = new InputtipsQuery(newText, city);
-                        inputtipsQuery.setCityLimit(true);
-                        mInputtips.setQuery(inputtipsQuery);
-                        mInputtips.requestInputtipsAsyn();
-                    } catch (Exception e) {
-                        GoUtils.DisplayToast(MainActivity.this, getResources().getString(R.string.app_error_search));
-                        XLog.e("搜索异常: " + e.getMessage());
-                    }
-                }
-
-                return true;
-            }
-        });
-
-        // 搜索框的清除按钮(该按钮属于安卓系统图标)
-        ImageView closeButton = searchView.findViewById(androidx.appcompat.R.id.search_close_btn);
-        closeButton.setOnClickListener(v -> {
-            EditText et = findViewById(androidx.appcompat.R.id.search_src_text);
-            et.setText("");
-            searchView.setQuery("", false);
-            mSearchLayout.setVisibility(View.INVISIBLE);
-            mHistoryLayout.setVisibility(View.VISIBLE);
-        });
-
-        return true;
-    }
-
-    @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
         if(sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER){
             mAccValues = sensorEvent.values;
@@ -649,6 +553,263 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         app_version.setText(GoUtils.getVersionName(this));
     }
 
+    /*============================== 搜索对话框 相关 ==============================*/
+    private void showSearchDialog() {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_search, null);
+        builder.setView(view);
+
+        AlertDialog dialog = builder.create();
+
+        // 获取视图
+        SearchView searchView = view.findViewById(R.id.search_view);
+        ListView lvResults = view.findViewById(R.id.lv_search_results);
+        ListView lvHistory = view.findViewById(R.id.lv_search_history);
+        TextView tvResultsLabel = view.findViewById(R.id.tv_results_label);
+        TextView tvHistoryLabel = view.findViewById(R.id.tv_history_label);
+        MaterialButton btnClose = view.findViewById(R.id.btn_close);
+
+        // 搜索结果数据列表和适配器
+        final List<Map<String, Object>> resultData = new ArrayList<>();
+        SimpleAdapter resultAdapter = new SimpleAdapter(this,
+                resultData,
+                R.layout.search_poi_item,
+                new String[]{"name", "address", "poi_longitude", "poi_latitude"},
+                new int[]{R.id.poi_name, R.id.poi_address, R.id.poi_longitude, R.id.poi_latitude});
+        lvResults.setAdapter(resultAdapter);
+
+        // 搜索历史数据列表和适配器
+        final List<Map<String, Object>> historyData = new ArrayList<>();
+        SimpleAdapter historyAdapter = new SimpleAdapter(this,
+                historyData,
+                R.layout.search_item,
+                new String[]{"search_key", "search_description", "search_isLoc", "search_longitude", "search_latitude"},
+                new int[]{R.id.search_key, R.id.search_description, R.id.search_isLoc, R.id.search_longitude, R.id.search_latitude});
+        lvHistory.setAdapter(historyAdapter);
+
+        // 加载搜索历史
+        loadSearchHistory(historyData, historyAdapter, tvHistoryLabel, lvHistory);
+
+        // 搜索结果点击
+        lvResults.setOnItemClickListener((parent, v, position, id) -> {
+            Map<String, Object> item = resultData.get(position);
+            String lng = (String) item.get("poi_longitude");
+            String lat = (String) item.get("poi_latitude");
+            String poiName = (String) item.get("name");
+            String poiAddress = (String) item.get("address");
+
+            if ("NEED_GEOCODE".equals(lng) || "NEED_GEOCODE".equals(lat)) {
+                performGeocodeSearch(poiName, poiAddress);
+            } else {
+                mMarkName = poiName;
+                mMarkLatLngMap = new LatLng(Double.parseDouble(lat), Double.parseDouble(lng));
+                mAMap.moveCamera(CameraUpdateFactory.newLatLng(mMarkLatLngMap));
+                markMap();
+                saveSearchResult(poiName, poiAddress, lng, lat);
+            }
+            dialog.dismiss();
+        });
+
+        // 搜索历史点击
+        lvHistory.setOnItemClickListener((parent, v, position, id) -> {
+            Map<String, Object> item = historyData.get(position);
+            String searchKey = (String) item.get("search_key");
+            String searchIsLoc = (String) item.get("search_isLoc");
+            String searchDescription = (String) item.get("search_description");
+
+            if ("1".equals(searchIsLoc)) {
+                String lng = (String) item.get("search_longitude");
+                String lat = (String) item.get("search_latitude");
+                mMarkLatLngMap = new LatLng(Double.parseDouble(lat), Double.parseDouble(lng));
+                mAMap.moveCamera(CameraUpdateFactory.newLatLng(mMarkLatLngMap));
+                markMap();
+                saveSearchResult(searchKey, searchDescription, lng, lat);
+                dialog.dismiss();
+            } else {
+                searchView.setQuery(searchKey, true);
+            }
+        });
+
+        // 搜索历史长按删除
+        lvHistory.setOnItemLongClickListener((parent, v, position, id) -> {
+            Map<String, Object> item = historyData.get(position);
+            String searchKey = (String) item.get("search_key");
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("删除搜索记录")
+                    .setMessage("确定要删除这条搜索记录吗？")
+                    .setPositiveButton("确定", (d, which) -> {
+                        try {
+                            mSearchHistoryDB.delete(DataBaseHistorySearch.TABLE_NAME,
+                                    DataBaseHistorySearch.DB_COLUMN_KEY + " = ?", new String[]{searchKey});
+                            loadSearchHistory(historyData, historyAdapter, tvHistoryLabel, lvHistory);
+                        } catch (Exception e) {
+                            XLog.e("删除搜索历史失败: " + e.getMessage());
+                        }
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+            return true;
+        });
+
+        // 搜索框监听
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                if (!query.isEmpty()) {
+                    performPOISearch(query);
+                }
+                return true;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                if (newText != null && !newText.isEmpty()) {
+                    try {
+                        String city = (mCurrentCity != null) ? mCurrentCity : "";
+                        InputtipsQuery query = new InputtipsQuery(newText, city);
+                        query.setCityLimit(true);
+                        mInputtips.setQuery(query);
+                        mInputtips.requestInputtipsAsyn();
+                    } catch (Exception e) {
+                        XLog.e("搜索建议异常: " + e.getMessage());
+                    }
+                } else {
+                    tvResultsLabel.setVisibility(View.GONE);
+                    lvResults.setVisibility(View.GONE);
+                    loadSearchHistory(historyData, historyAdapter, tvHistoryLabel, lvHistory);
+                }
+                return true;
+            }
+        });
+
+        // 设置搜索结果回调
+        mInputtips.setInputtipsListener((tipList, rCode) -> {
+            if (rCode == AMapException.CODE_AMAP_SUCCESS && tipList != null) {
+                resultData.clear();
+                for (Tip tip : tipList) {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("name", tip.getName());
+                    item.put("address", tip.getDistrict() + tip.getAddress());
+                    if (tip.getPoint() != null) {
+                        item.put("poi_longitude", String.valueOf(tip.getPoint().getLongitude()));
+                        item.put("poi_latitude", String.valueOf(tip.getPoint().getLatitude()));
+                    } else {
+                        item.put("poi_longitude", "NEED_GEOCODE");
+                        item.put("poi_latitude", "NEED_GEOCODE");
+                    }
+                    resultData.add(item);
+                }
+                resultAdapter.notifyDataSetChanged();
+
+                if (resultData.isEmpty()) {
+                    tvResultsLabel.setVisibility(View.GONE);
+                    lvResults.setVisibility(View.GONE);
+                } else {
+                    tvResultsLabel.setVisibility(View.VISIBLE);
+                    lvResults.setVisibility(View.VISIBLE);
+                    tvHistoryLabel.setVisibility(View.GONE);
+                    lvHistory.setVisibility(View.GONE);
+                }
+            }
+        });
+
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        // 清除历史按钮
+        MaterialButton btnClearHistory = view.findViewById(R.id.btn_clear_history);
+        btnClearHistory.setOnClickListener(v -> {
+            if (historyData.isEmpty()) {
+                GoUtils.DisplayToast(this, "暂无搜索历史");
+                return;
+            }
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("清除搜索历史")
+                    .setMessage("确定要清除所有搜索历史吗？")
+                    .setPositiveButton("确定", (d, which) -> {
+                        try {
+                            mSearchHistoryDB.delete(DataBaseHistorySearch.TABLE_NAME, null, null);
+                            loadSearchHistory(historyData, historyAdapter, tvHistoryLabel, lvHistory);
+                            GoUtils.DisplayToast(this, "搜索历史已清除");
+                        } catch (Exception e) {
+                            XLog.e("清除搜索历史失败: " + e.getMessage());
+                            GoUtils.DisplayToast(this, "清除失败");
+                        }
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+        });
+
+        dialog.show();
+        GoUtils.setDialogWidth(dialog);
+        searchView.requestFocus();
+    }
+
+    private void loadSearchHistory(List<Map<String, Object>> historyData, SimpleAdapter adapter, TextView label, ListView listView) {
+        try {
+            Cursor cursor = mSearchHistoryDB.query(DataBaseHistorySearch.TABLE_NAME, null, null, null, null, null,
+                    DataBaseHistorySearch.DB_COLUMN_TIMESTAMP + " DESC LIMIT 10");
+            historyData.clear();
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("search_key", cursor.getString(cursor.getColumnIndexOrThrow(DataBaseHistorySearch.DB_COLUMN_KEY)));
+                    item.put("search_description", cursor.getString(cursor.getColumnIndexOrThrow(DataBaseHistorySearch.DB_COLUMN_DESCRIPTION)));
+                    item.put("search_isLoc", cursor.getString(cursor.getColumnIndexOrThrow(DataBaseHistorySearch.DB_COLUMN_IS_LOCATION)));
+                    item.put("search_longitude", cursor.getString(cursor.getColumnIndexOrThrow(DataBaseHistorySearch.DB_COLUMN_LONGITUDE_CUSTOM)));
+                    item.put("search_latitude", cursor.getString(cursor.getColumnIndexOrThrow(DataBaseHistorySearch.DB_COLUMN_LATITUDE_CUSTOM)));
+                    historyData.add(item);
+                } while (cursor.moveToNext());
+                cursor.close();
+            }
+            adapter.notifyDataSetChanged();
+
+            if (historyData.isEmpty()) {
+                label.setVisibility(View.GONE);
+                listView.setVisibility(View.GONE);
+            } else {
+                label.setVisibility(View.VISIBLE);
+                listView.setVisibility(View.VISIBLE);
+            }
+        } catch (Exception e) {
+            XLog.e("加载搜索历史失败: " + e.getMessage());
+        }
+    }
+
+    private void saveSearchResult(String name, String address, String lng, String lat) {
+        double[] latLng = MapUtils.gcj02ToWgs84(Double.parseDouble(lng), Double.parseDouble(lat));
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(DataBaseHistorySearch.DB_COLUMN_KEY, name);
+        contentValues.put(DataBaseHistorySearch.DB_COLUMN_DESCRIPTION, address);
+        contentValues.put(DataBaseHistorySearch.DB_COLUMN_IS_LOCATION, DataBaseHistorySearch.DB_SEARCH_TYPE_RESULT);
+        contentValues.put(DataBaseHistorySearch.DB_COLUMN_LONGITUDE_CUSTOM, lng);
+        contentValues.put(DataBaseHistorySearch.DB_COLUMN_LATITUDE_CUSTOM, lat);
+        contentValues.put(DataBaseHistorySearch.DB_COLUMN_LONGITUDE_WGS84, String.valueOf(latLng[0]));
+        contentValues.put(DataBaseHistorySearch.DB_COLUMN_LATITUDE_WGS84, String.valueOf(latLng[1]));
+        contentValues.put(DataBaseHistorySearch.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
+        DataBaseHistorySearch.saveHistorySearch(mSearchHistoryDB, contentValues);
+    }
+
+    private void performPOISearch(String query) {
+        try {
+            String city = (mCurrentCity != null) ? mCurrentCity : "";
+            XLog.i("搜索关键字: " + query + ", 城市: " + city);
+            InputtipsQuery inputtipsQuery = new InputtipsQuery(query, city);
+            inputtipsQuery.setCityLimit(true);
+            mInputtips.setQuery(inputtipsQuery);
+            mInputtips.requestInputtipsAsyn();
+
+            ContentValues contentValues = new ContentValues();
+            contentValues.put(DataBaseHistorySearch.DB_COLUMN_KEY, query);
+            contentValues.put(DataBaseHistorySearch.DB_COLUMN_DESCRIPTION, "搜索关键字");
+            contentValues.put(DataBaseHistorySearch.DB_COLUMN_IS_LOCATION, DataBaseHistorySearch.DB_SEARCH_TYPE_KEY);
+            contentValues.put(DataBaseHistorySearch.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
+            DataBaseHistorySearch.saveHistorySearch(mSearchHistoryDB, contentValues);
+        } catch (Exception e) {
+            GoUtils.DisplayToast(MainActivity.this, getResources().getString(R.string.app_error_search));
+            XLog.e("搜索异常: " + e.getMessage());
+        }
+    }
+
     /*============================== 主界面地图 相关 ==============================*/
     private void initMap(Bundle savedInstanceState) {
         // 地图初始化
@@ -657,15 +818,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         mMapView.onCreate(savedInstanceState);
         mAMap = mMapView.getMap();
         mAMap.setMapType(AMap.MAP_TYPE_NORMAL);
-        
-        // 应用地图缓存设置
-        boolean mapCacheEnabled = MapCacheManager.isMapCacheEnabled(this);
-        if (!mapCacheEnabled) {
-            // 如果禁用了缓存，设置网络模式
-            XLog.i("地图缓存已禁用");
-        } else {
-            XLog.i("地图缓存已启用");
-        }
         mAMap.setMyLocationEnabled(true);
 
         // 设置Marker点击监听器（全局设置，确保固定点和临时点都能响应点击）
@@ -676,6 +828,15 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
 
         // 设置自定义InfoWindow适配器
         mAMap.setInfoWindowAdapter(new CustomInfoWindowAdapter());
+
+        // 初始化搜索建议
+        try {
+            mInputtips = new Inputtips(this, (tipList, rCode) -> {
+                // 空回调，实际回调在搜索弹窗中设置
+            });
+        } catch (AMapException e) {
+            XLog.e("Inputtips init error: " + e.getMessage());
+        }
 
         mAMap.setOnMapClickListener(new AMap.OnMapClickListener() {
             /**
@@ -805,12 +966,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                             mAMap.moveCamera(cameraUpdate);
                             markMap();
 
-                            // 记录缓存区域
-                            String cityName = extractCityFromAddress(address.getFormatAddress());
-                            if (cityName != null) {
-                                MapCacheManager.addCachedArea(MainActivity.this, cityName);
-                            }
-
                             // 保存到搜索历史
                             double[] latLngWgs84 = MapUtils.gcj02ToWgs84(lon, lat);
                             ContentValues contentValues = new ContentValues();
@@ -823,12 +978,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                             contentValues.put(DataBaseHistorySearch.DB_COLUMN_LATITUDE_WGS84, String.valueOf(latLngWgs84[1]));
                             contentValues.put(DataBaseHistorySearch.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
                             DataBaseHistorySearch.saveHistorySearch(mSearchHistoryDB, contentValues);
-
-                            // 关闭搜索界面
-                            mSearchLayout.setVisibility(View.INVISIBLE);
-                            if (searchItem != null) {
-                                searchItem.collapseActionView();
-                            }
 
                             GoUtils.DisplayToast(MainActivity.this, "已定位: " + name);
                         } else {
@@ -1430,33 +1579,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         }
     }
 
-    //获取查询历史
-    private List<Map<String, Object>> getSearchHistory() {
-        List<Map<String, Object>> data = new ArrayList<>();
-
-        try {
-            Cursor cursor = mSearchHistoryDB.query(DataBaseHistorySearch.TABLE_NAME, null,
-                    DataBaseHistorySearch.DB_COLUMN_ID + " > ?", new String[] {"0"},
-                    null, null, DataBaseHistorySearch.DB_COLUMN_TIMESTAMP + " DESC", null);
-
-            while (cursor.moveToNext()) {
-                Map<String, Object> searchHistoryItem = new HashMap<>();
-                searchHistoryItem.put(DataBaseHistorySearch.DB_COLUMN_KEY, cursor.getString(1));
-                searchHistoryItem.put(DataBaseHistorySearch.DB_COLUMN_DESCRIPTION, cursor.getString(2));
-                searchHistoryItem.put(DataBaseHistorySearch.DB_COLUMN_TIMESTAMP, "" + cursor.getInt(3));
-                searchHistoryItem.put(DataBaseHistorySearch.DB_COLUMN_IS_LOCATION, "" + cursor.getInt(4));
-                searchHistoryItem.put(DataBaseHistorySearch.DB_COLUMN_LONGITUDE_CUSTOM, cursor.getString(7));
-                searchHistoryItem.put(DataBaseHistorySearch.DB_COLUMN_LATITUDE_CUSTOM, cursor.getString(8));
-                data.add(searchHistoryItem);
-            }
-            cursor.close();
-        } catch (Exception e) {
-            XLog.e("ERROR: getSearchHistory");
-        }
-
-        return data;
-    }
-
     // 记录请求的位置信息（此方法保留用于位置名称查询，不再保存到旧历史记录）
     private void recordCurrentLocation(double lng, double lat) {
         // 模拟记录现在由saveSimulationRecord直接保存
@@ -1464,201 +1586,37 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         XLog.d("recordCurrentLocation: 位置已记录，模拟记录由saveSimulationRecord保存");
     }
 
-    /*============================== SearchView 相关 ==============================*/
-    private void initSearchView() {
-        mSearchLayout = findViewById(R.id.search_linear);
-        mHistoryLayout = findViewById(R.id.search_history_linear);
+        /*============================== 搜索相关辅助方法 ==============================*/
 
-        mSearchList = findViewById(R.id.search_list_view);
-        mSearchList.setOnItemClickListener((parent, view, position, id) -> {
-            String lng = ((TextView) view.findViewById(R.id.poi_longitude)).getText().toString();
-            String lat = ((TextView) view.findViewById(R.id.poi_latitude)).getText().toString();
-            String poiName = ((TextView) view.findViewById(R.id.poi_name)).getText().toString();
-            String poiAddress = ((TextView) view.findViewById(R.id.poi_address)).getText().toString();
+        @NonNull
 
-            // 检查是否需要地理编码查询
-            if ("NEED_GEOCODE".equals(lng) || "NEED_GEOCODE".equals(lat)) {
-                // 需要地理编码查询
-                String fullAddress = poiAddress.trim();
-                XLog.i("搜索结果无坐标，需要地理编码: " + poiName + ", 地址: " + fullAddress);
-                performGeocodeSearch(poiName, fullAddress);
-                return;
-            }
+        private static List<Map<String, Object>> getMapList(List<Tip> tipList) {
 
-            mMarkName = poiName;
-            mMarkLatLngMap = new LatLng(Double.parseDouble(lat), Double.parseDouble(lng));
-            CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLng(mMarkLatLngMap);
-            mAMap.moveCamera(cameraUpdate);
+            List<Map<String, Object>> data = new ArrayList<>();
 
-            markMap();
+            int retCnt = tipList.size();
 
-            // 记录缓存区域
-            String cityName = extractCityFromAddress(poiAddress);
-            if (cityName != null) {
-                MapCacheManager.addCachedArea(this, cityName);
-            }
+            XLog.i("搜索原始返回 " + retCnt + " 条结果");
 
-            double[] latLng = MapUtils.gcj02ToWgs84(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
+    
 
-            // mSearchList.setVisibility(View.GONE);
-            //搜索历史 插表参数
-            ContentValues contentValues = new ContentValues();
-            contentValues.put(DataBaseHistorySearch.DB_COLUMN_KEY, mMarkName);
-            contentValues.put(DataBaseHistorySearch.DB_COLUMN_DESCRIPTION, poiAddress);
-            contentValues.put(DataBaseHistorySearch.DB_COLUMN_IS_LOCATION, DataBaseHistorySearch.DB_SEARCH_TYPE_RESULT);
-            contentValues.put(DataBaseHistorySearch.DB_COLUMN_LONGITUDE_CUSTOM, lng);
-            contentValues.put(DataBaseHistorySearch.DB_COLUMN_LATITUDE_CUSTOM, lat);
-            contentValues.put(DataBaseHistorySearch.DB_COLUMN_LONGITUDE_WGS84, String.valueOf(latLng[0]));
-            contentValues.put(DataBaseHistorySearch.DB_COLUMN_LATITUDE_WGS84, String.valueOf(latLng[1]));
-            contentValues.put(DataBaseHistorySearch.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
+            int nullPointCount = 0;
 
-            DataBaseHistorySearch.saveHistorySearch(mSearchHistoryDB, contentValues);
-            mSearchLayout.setVisibility(View.INVISIBLE);
-            searchItem.collapseActionView();
-        });
-        //搜索历史列表的点击监听
-        mSearchHistoryList = findViewById(R.id.search_history_list_view);
-        mSearchHistoryList.setOnItemClickListener((parent, view, position, id) -> {
-            String searchDescription = ((TextView) view.findViewById(R.id.search_description)).getText().toString();
-            String searchKey = ((TextView) view.findViewById(R.id.search_key)).getText().toString();
-            String searchIsLoc = ((TextView) view.findViewById(R.id.search_isLoc)).getText().toString();
+            for (int i = 0; i < retCnt; i++) {
 
-            //如果是定位搜索
-            if (searchIsLoc.equals("1")) {
-                String lng = ((TextView) view.findViewById(R.id.search_longitude)).getText().toString();
-                String lat = ((TextView) view.findViewById(R.id.search_latitude)).getText().toString();
-                // mMarkName = ((TextView) view.findViewById(R.id.poi_name)).getText().toString();
-                mMarkLatLngMap = new LatLng(Double.parseDouble(lat), Double.parseDouble(lng));
-                CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLng(mMarkLatLngMap);
-                mAMap.moveCamera(cameraUpdate);
+                Tip tip = tipList.get(i);
 
-                markMap();
+    
 
-                // 记录缓存区域
-                String cityName = extractCityFromAddress(searchDescription);
-                if (cityName != null) {
-                    MapCacheManager.addCachedArea(this, cityName);
-                }
+                Map<String, Object> poiItem = new HashMap<>();
 
-                double[] latLng = MapUtils.gcj02ToWgs84(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
+                poiItem.put(POI_NAME, tip.getName());
 
-                //设置列表不可见
-                mHistoryLayout.setVisibility(View.INVISIBLE);
-                searchItem.collapseActionView();
-                //更新表
-                ContentValues contentValues = new ContentValues();
-                contentValues.put(DataBaseHistorySearch.DB_COLUMN_KEY, searchKey);
-                contentValues.put(DataBaseHistorySearch.DB_COLUMN_DESCRIPTION, searchDescription);
-                contentValues.put(DataBaseHistorySearch.DB_COLUMN_IS_LOCATION, DataBaseHistorySearch.DB_SEARCH_TYPE_RESULT);
-                contentValues.put(DataBaseHistorySearch.DB_COLUMN_LONGITUDE_CUSTOM, lng);
-                contentValues.put(DataBaseHistorySearch.DB_COLUMN_LATITUDE_CUSTOM, lat);
-                contentValues.put(DataBaseHistorySearch.DB_COLUMN_LONGITUDE_WGS84, String.valueOf(latLng[0]));
-                contentValues.put(DataBaseHistorySearch.DB_COLUMN_LATITUDE_WGS84, String.valueOf(latLng[1]));
-                contentValues.put(DataBaseHistorySearch.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
+                poiItem.put(POI_ADDRESS, tip.getDistrict() + " " + tip.getAddress());
 
-                DataBaseHistorySearch.saveHistorySearch(mSearchHistoryDB, contentValues);
-            } else if (searchIsLoc.equals("0")) { //如果仅仅是搜索
-                try {
-                    searchView.setQuery(searchKey, true);
-                } catch (Exception e) {
-                    GoUtils.DisplayToast(this, getResources().getString(R.string.app_error_search));
-                    XLog.e(getResources().getString(R.string.app_error_search));
-                }
-            } else {
-                XLog.e(getResources().getString(R.string.app_error_param));
-            }
-        });
-        mSearchHistoryList.setOnItemLongClickListener((parent, view, position, id) -> {
-            new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("警告")//这里是表头的内容
-                    .setMessage("确定要删除该项搜索记录吗?")//这里是中间显示的具体信息
-                    .setPositiveButton("确定",(dialog, which) -> {
-                        String searchKey = ((TextView) view.findViewById(R.id.search_key)).getText().toString();
+    
 
-                        try {
-                            mSearchHistoryDB.delete(DataBaseHistorySearch.TABLE_NAME, DataBaseHistorySearch.DB_COLUMN_KEY + " = ?", new String[] {searchKey});
-                            //删除成功
-                            //展示搜索历史
-                            List<Map<String, Object>> data = getSearchHistory();
-
-                            if (!data.isEmpty()) {
-                                SimpleAdapter simAdapt = new SimpleAdapter(
-                                        MainActivity.this,
-                                        data,
-                                        R.layout.search_item,
-                                        new String[] {DataBaseHistorySearch.DB_COLUMN_KEY,
-                                                DataBaseHistorySearch.DB_COLUMN_DESCRIPTION,
-                                                DataBaseHistorySearch.DB_COLUMN_TIMESTAMP,
-                                                DataBaseHistorySearch.DB_COLUMN_IS_LOCATION,
-                                                DataBaseHistorySearch.DB_COLUMN_LONGITUDE_CUSTOM,
-                                                DataBaseHistorySearch.DB_COLUMN_LATITUDE_CUSTOM}, // 与下面数组元素要一一对应
-                                        new int[] {R.id.search_key, R.id.search_description, R.id.search_timestamp, R.id.search_isLoc, R.id.search_longitude, R.id.search_latitude});
-                                mSearchHistoryList.setAdapter(simAdapt);
-                                mHistoryLayout.setVisibility(View.VISIBLE);
-                            }
-                        } catch (Exception e) {
-                            XLog.e("ERROR: delete database error");
-                            GoUtils.DisplayToast(MainActivity.this,getResources().getString(R.string.history_delete_error));
-                        }
-                    })
-                    .setNegativeButton("取消",
-                            (dialog, which) -> {
-                            })
-                    .show();
-            return true;
-        });
-        //设置搜索建议返回值监听 - 高德地图 Inputtips
-        try {
-            //noinspection deprecation
-            mInputtips = new Inputtips(this, (tipList, rCode) -> {
-                if (rCode != AMapException.CODE_AMAP_SUCCESS || tipList == null) {
-                    XLog.w("搜索请求失败，错误码: " + rCode);
-                    // 错误码 1804 表示网络连接错误
-                    if (rCode == 1804 || rCode == 1802) {
-                        GoUtils.DisplayToast(this, "网络连接失败，请检查网络设置");
-                    } else {
-                        GoUtils.DisplayToast(this, "搜索失败，请重试");
-                    }
-                } else {
-                    List<Map<String, Object>> data = getMapList(tipList);
-
-                    if (data.isEmpty()) {
-                        XLog.w("搜索结果为空，原始结果数量: " + tipList.size());
-                        GoUtils.DisplayToast(this,getResources().getString(R.string.app_search_null));
-                    } else {
-                        XLog.i("搜索成功，返回 " + data.size() + " 条结果");
-                        SimpleAdapter simAdapt = new SimpleAdapter(
-                                MainActivity.this,
-                                data,
-                                R.layout.search_poi_item,
-                                new String[] {POI_NAME, POI_ADDRESS, POI_LONGITUDE, POI_LATITUDE}, // 与下面数组元素要一一对应
-                                new int[] {R.id.poi_name, R.id.poi_address, R.id.poi_longitude, R.id.poi_latitude});
-                        mSearchList.setAdapter(simAdapt);
-                        // mSearchList.setVisibility(View.VISIBLE);
-                        mSearchLayout.setVisibility(View.VISIBLE);
-                    }
-                }
-            });
-        } catch (AMapException e) {
-            XLog.e("Inputtips init error: " + e.getMessage());
-        }
-    }
-
-    @NonNull
-    private static List<Map<String, Object>> getMapList(List<Tip> tipList) {
-        List<Map<String, Object>> data = new ArrayList<>();
-        int retCnt = tipList.size();
-        XLog.i("搜索原始返回 " + retCnt + " 条结果");
-
-        int nullPointCount = 0;
-        for (int i = 0; i < retCnt; i++) {
-            Tip tip = tipList.get(i);
-
-            Map<String, Object> poiItem = new HashMap<>();
-            poiItem.put(POI_NAME, tip.getName());
-            poiItem.put(POI_ADDRESS, tip.getDistrict() + " " + tip.getAddress());
-
-            if (tip.getPoint() == null) {
+                if (tip.getPoint() == null) {
                 XLog.w("搜索结果项 " + i + " 的坐标为 null，关键字: " + tip.getName());
                 nullPointCount++;
                 // 保留无坐标结果，使用特殊标记
@@ -1986,8 +1944,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         tvSelectedCount.setText("已选择: " + currentCount + " 个坐标");
 
         // 加载切换动画
-        Animation switchFadeIn = AnimationUtils.loadAnimation(this, R.anim.switch_fade_in);
-        Animation switchFadeOut = AnimationUtils.loadAnimation(this, R.anim.switch_fade_out);
+        GoUtils.AnimationPair animPair = GoUtils.loadSwitchAnimations(this, R.anim.switch_fade_in, R.anim.switch_fade_out);
 
         // 设置初始显示状态
         if (isFavoriteMode) {
@@ -2033,11 +1990,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         btnHistory.setOnClickListener(v -> {
             if (containerFavorites.getVisibility() == View.VISIBLE) {
                 // 使用切换动画
-                containerFavorites.startAnimation(switchFadeOut);
-                containerFavorites.setVisibility(View.GONE);
-                containerHistory.setVisibility(View.VISIBLE);
-                containerHistory.startAnimation(switchFadeIn);
-                // 更新按钮样式
+                                    containerFavorites.startAnimation(animPair.fadeOut);
+                                    containerFavorites.setVisibility(View.GONE);
+                                    containerHistory.setVisibility(View.VISIBLE);
+                                    containerHistory.startAnimation(animPair.fadeIn);                // 更新按钮样式
                 updateMultiPointButtonStyles(btnHistory, btnFavorites, false);
             }
         });
@@ -2046,11 +2002,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         btnFavorites.setOnClickListener(v -> {
             if (containerHistory.getVisibility() == View.VISIBLE) {
                 // 使用切换动画
-                containerHistory.startAnimation(switchFadeOut);
-                containerHistory.setVisibility(View.GONE);
-                containerFavorites.setVisibility(View.VISIBLE);
-                containerFavorites.startAnimation(switchFadeIn);
-                // 更新按钮样式
+                                    containerHistory.startAnimation(animPair.fadeOut);
+                                    containerHistory.setVisibility(View.GONE);
+                                    containerFavorites.setVisibility(View.VISIBLE);
+                                    containerFavorites.startAnimation(animPair.fadeIn);                // 更新按钮样式
                 updateMultiPointButtonStyles(btnHistory, btnFavorites, true);
             }
         });
@@ -3195,17 +3150,16 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         });
 
         // 加载切换动画
-        Animation switchFadeIn = AnimationUtils.loadAnimation(this, R.anim.switch_fade_in);
-        Animation switchFadeOut = AnimationUtils.loadAnimation(this, R.anim.switch_fade_out);
+        GoUtils.AnimationPair animPair = GoUtils.loadSwitchAnimations(this, R.anim.switch_fade_in, R.anim.switch_fade_out);
 
         // 切换按钮点击事件
         btnCoordinates.setOnClickListener(v -> {
             if (containerRegions.getVisibility() == View.VISIBLE) {
                 // 使用切换动画
-                containerRegions.startAnimation(switchFadeOut);
+                containerRegions.startAnimation(animPair.fadeOut);
                 containerRegions.setVisibility(View.GONE);
                 containerCoordinates.setVisibility(View.VISIBLE);
-                containerCoordinates.startAnimation(switchFadeIn);
+                containerCoordinates.startAnimation(animPair.fadeIn);
                 // 更新按钮样式
                 btnCoordinates.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.md_primary)));
                 btnCoordinates.setTextColor(getColor(R.color.md_onPrimary));
@@ -3221,10 +3175,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         btnRegions.setOnClickListener(v -> {
             if (containerCoordinates.getVisibility() == View.VISIBLE) {
                 // 使用切换动画
-                containerCoordinates.startAnimation(switchFadeOut);
+                containerCoordinates.startAnimation(animPair.fadeOut);
                 containerCoordinates.setVisibility(View.GONE);
                 containerRegions.setVisibility(View.VISIBLE);
-                containerRegions.startAnimation(switchFadeIn);
+                containerRegions.startAnimation(animPair.fadeIn);
                 // 更新按钮样式
                 btnRegions.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.md_primary)));
                 btnRegions.setTextColor(getColor(R.color.md_onPrimary));
@@ -3257,7 +3211,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                                 currentList.clear();
                                 currentList.addAll(getFavoritesData());
                             } else {
-                                DataBaseFavoriteRegions.deleteAllFavoriteRegions(mFavoriteRegionsDB);
+                                DataBaseFavoriteRegions.clearAllFavoriteRegions(mFavoriteRegionsDB);
                                 currentList.clear();
                                 currentList.addAll(getFavoriteRegionsData());
                             }
@@ -3533,8 +3487,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         });
 
         // 加载切换动画
-        Animation switchFadeIn = AnimationUtils.loadAnimation(this, R.anim.switch_fade_in);
-        Animation switchFadeOut = AnimationUtils.loadAnimation(this, R.anim.switch_fade_out);
+        GoUtils.AnimationPair animPair = GoUtils.loadSwitchAnimations(this, R.anim.switch_fade_in, R.anim.switch_fade_out);
 
         // 默认显示坐标列表
         containerCoordinates.setVisibility(View.VISIBLE);
@@ -3546,10 +3499,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         // 坐标按钮点击
         btnCoordinates.setOnClickListener(v -> {
             if (containerRegions.getVisibility() == View.VISIBLE) {
-                containerRegions.startAnimation(switchFadeOut);
+                containerRegions.startAnimation(animPair.fadeOut);
                 containerRegions.setVisibility(View.GONE);
                 containerCoordinates.setVisibility(View.VISIBLE);
-                containerCoordinates.startAnimation(switchFadeIn);
+                containerCoordinates.startAnimation(animPair.fadeIn);
                 // 更新按钮样式
                 btnCoordinates.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.md_primary)));
                 btnCoordinates.setTextColor(getColor(R.color.md_onPrimary));
@@ -3564,10 +3517,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         // 区域按钮点击
         btnRegions.setOnClickListener(v -> {
             if (containerCoordinates.getVisibility() == View.VISIBLE) {
-                containerCoordinates.startAnimation(switchFadeOut);
+                containerCoordinates.startAnimation(animPair.fadeOut);
                 containerCoordinates.setVisibility(View.GONE);
                 containerRegions.setVisibility(View.VISIBLE);
-                containerRegions.startAnimation(switchFadeIn);
+                containerRegions.startAnimation(animPair.fadeIn);
                 // 更新按钮样式
                 btnRegions.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.md_primary)));
                 btnRegions.setTextColor(getColor(R.color.md_onPrimary));
@@ -5321,7 +5274,8 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private void showMarkerActionMenu() {
         if (mMarkLatLngMap == null) return;
 
-        String[] options = {"收藏", "分享", "设置区域", "固定"};
+        // 将"设置区域"移到底部：收藏、分享、固定、设置区域
+        String[] options = {"收藏", "分享", "固定", "设置区域"};
         // 显示格式：坐标：经度 纬度
         String coordText = String.format("坐标：%.6f %.6f", mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
 
@@ -5337,11 +5291,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     case 1: // 分享 - 使用与固定圆相同的选项
                         shareCurrentMarkerLikeCircle();
                         break;
-                    case 2: // 设置区域 - 以当前点为中心画临时圆
-                        showSetRegionDialog(mMarkLatLngMap.latitude, mMarkLatLngMap.longitude, false);
-                        break;
-                    case 3: // 固定 - 弹窗输入名称
+                    case 2: // 固定 - 弹窗输入名称
                         pinCurrentMarker();
+                        break;
+                    case 3: // 设置区域 - 以当前点为中心画临时圆
+                        showSetRegionDialog(mMarkLatLngMap.latitude, mMarkLatLngMap.longitude, false);
                         break;
                 }
             })
@@ -6229,13 +6183,24 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 mInfoWindowView = LayoutInflater.from(MainActivity.this).inflate(R.layout.info_window_location, null);
             }
             
-            // 设置 InfoWindow 宽度为屏幕宽度的60%
+            // 设置 InfoWindow 宽度为自适应，但不超过屏幕宽度的80%
             android.view.WindowManager windowManager = (android.view.WindowManager) getSystemService(Context.WINDOW_SERVICE);
             android.view.Display display = windowManager.getDefaultDisplay();
             android.graphics.Point size = new android.graphics.Point();
             display.getSize(size);
             int screenWidth = size.x;
-            mInfoWindowView.setLayoutParams(new android.view.ViewGroup.LayoutParams((int) (screenWidth * 0.6), 
+            int maxWidth = (int) (screenWidth * 0.80);
+            // 先测量内容所需宽度
+            mInfoWindowView.measure(
+                android.view.View.MeasureSpec.makeMeasureSpec(maxWidth, android.view.View.MeasureSpec.AT_MOST),
+                android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+            );
+            int contentWidth = mInfoWindowView.getMeasuredWidth();
+            // 取内容宽度和最大宽度的较小值，但至少为最小合理宽度
+            float density = getResources().getDisplayMetrics().density;
+            int minWidth = (int) (200 * density); // 最小200dp
+            int finalWidth = Math.max(minWidth, Math.min(contentWidth, maxWidth));
+            mInfoWindowView.setLayoutParams(new android.view.ViewGroup.LayoutParams(finalWidth,
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
             
             bindInfoWindowData(marker);
@@ -6253,7 +6218,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
 
             // 获取视图
             TextView tvLocationName = mInfoWindowView.findViewById(R.id.tv_location_name);
-            TextView tvAddress = mInfoWindowView.findViewById(R.id.tv_address);
             TextView tvGcj02 = mInfoWindowView.findViewById(R.id.tv_gcj02);
             TextView tvWgs84 = mInfoWindowView.findViewById(R.id.tv_wgs84);
             View ivSimulationStatus = mInfoWindowView.findViewById(R.id.iv_simulation_status);
@@ -6261,9 +6225,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             LinearLayout layoutRegionInfo = mInfoWindowView.findViewById(R.id.layout_region_info);
             TextView tvCenterPoint = mInfoWindowView.findViewById(R.id.tv_center_point);
             TextView tvRadius = mInfoWindowView.findViewById(R.id.tv_radius);
-            ImageButton btnCopy = mInfoWindowView.findViewById(R.id.btn_copy);
-            ImageButton btnFavorite = mInfoWindowView.findViewById(R.id.btn_favorite);
-            ImageButton btnSimulate = mInfoWindowView.findViewById(R.id.btn_simulate);
 
             // 设置位置名称
             String rawTitle = marker.getTitle();
@@ -6279,9 +6240,9 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             // 转换为WGS84
             double[] wgs84 = MapUtils.gcj02ToWgs84(lon, lat);
 
-            // 设置坐标显示
-            tvGcj02.setText(String.format("GCJ02: %.6f, %.6f", lon, lat));
-            tvWgs84.setText(String.format("WGS84: %.6f, %.6f", wgs84[0], wgs84[1]));
+            // 设置坐标显示（使用紧凑格式）
+            tvGcj02.setText(String.format("GCJ: %.6f,%.6f", lon, lat));
+            tvWgs84.setText(String.format("WGS: %.6f,%.6f", wgs84[0], wgs84[1]));
 
             // 检查是否是固定区域（通过marker的object判断）
             boolean isRegion = false;
@@ -6305,53 +6266,46 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             }
 
             // 检查是否已收藏
-            final boolean[] isFavorited = {checkIsFavorited(lat, lon)};
-            ivFavoriteStatus.setVisibility(isFavorited[0] ? View.VISIBLE : View.GONE);
-            btnFavorite.setImageResource(isFavorited[0] ? R.drawable.ic_favorite : R.drawable.ic_favorite);
-            btnFavorite.setAlpha(isFavorited[0] ? 1.0f : 0.5f);
+            boolean isFavorited = checkIsFavorited(lat, lon);
+            ivFavoriteStatus.setVisibility(isFavorited ? View.VISIBLE : View.GONE);
 
             // 区域信息显示
             if (isRegion) {
                 layoutRegionInfo.setVisibility(View.VISIBLE);
-                tvCenterPoint.setText(String.format("中心: %.3f, %.3f", lon, lat));
-                tvRadius.setText(String.format("半径: %.0fm", radius));
+                tvCenterPoint.setText(String.format("中心: %.4f,%.4f", lon, lat));
+                tvRadius.setText(String.format("半径:%.0fm", radius));
             } else {
                 layoutRegionInfo.setVisibility(View.GONE);
             }
 
-            // 设置地址（使用snippet）
-            String snippet = marker.getSnippet();
-            tvAddress.setText(snippet != null && !snippet.isEmpty() ? snippet : "暂无地址信息");
+            // 点击位置名称复制地点名和坐标
+            tvLocationName.setOnClickListener(v -> {
+                String copyText = String.format("%s\nGCJ: %.6f,%.6f\nWGS: %.6f,%.6f", 
+                    title, lon, lat, wgs84[0], wgs84[1]);
+                android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                android.content.ClipData clip = android.content.ClipData.newPlainText("位置信息", copyText);
+                cm.setPrimaryClip(clip);
+                GoUtils.DisplayToast(MainActivity.this, "地点信息已复制");
+            });
 
-            // 复制按钮点击
-            btnCopy.setOnClickListener(v -> {
+            // 点击GCJ02坐标复制
+            tvGcj02.setOnClickListener(v -> {
                 String coordText = String.format("%.6f,%.6f", lon, lat);
                 android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                android.content.ClipData clip = android.content.ClipData.newPlainText("坐标", coordText);
+                android.content.ClipData clip = android.content.ClipData.newPlainText("GCJ02坐标", coordText);
                 cm.setPrimaryClip(clip);
-                GoUtils.DisplayToast(MainActivity.this, "坐标已复制");
+                GoUtils.DisplayToast(MainActivity.this, "GCJ02坐标已复制");
             });
 
-            // 收藏按钮点击
-            btnFavorite.setOnClickListener(v -> {
-                if (isFavorited[0]) {
-                    GoUtils.DisplayToast(MainActivity.this, "该位置已收藏");
-                } else {
-                    addMarkerToFavorite(marker, title, lat, lon);
-                    isFavorited[0] = true;
-                    ivFavoriteStatus.setVisibility(View.VISIBLE);
-                    btnFavorite.setAlpha(1.0f);
-                }
+            // 点击WGS84坐标复制
+            tvWgs84.setOnClickListener(v -> {
+                String coordText = String.format("%.6f,%.6f", wgs84[0], wgs84[1]);
+                android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                android.content.ClipData clip = android.content.ClipData.newPlainText("WGS84坐标", coordText);
+                cm.setPrimaryClip(clip);
+                GoUtils.DisplayToast(MainActivity.this, "WGS84坐标已复制");
             });
 
-            // 模拟按钮点击
-            btnSimulate.setOnClickListener(v -> {
-                // 更新当前标记
-                mMarkLatLngMap = position;
-                mMarkName = title;
-                // 调用模拟方法
-                doGoLocation(mInfoWindowView);
-            });
         }
     }
 

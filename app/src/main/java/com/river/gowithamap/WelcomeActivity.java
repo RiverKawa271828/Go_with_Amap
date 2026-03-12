@@ -6,7 +6,8 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import androidx.appcompat.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -26,13 +27,13 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.animation.BounceInterpolator;
-import android.webkit.WebChromeClient;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.ImageView;
 import android.widget.TextView;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 
 import androidx.annotation.NonNull;
 import androidx.preference.PreferenceManager;
@@ -82,52 +83,20 @@ public class WelcomeActivity extends BaseActivity {
         // 其他情况（包括完全关闭后重新打开）都显示启动页
         setContentView(R.layout.activity_welcome);
 
-        // 加载 Maxwell 猫 GIF - 使用 WebView (硬件加速，更流畅)
-        WebView webViewMaxwell = findViewById(R.id.webview_maxwell);
+        // 加载 Maxwell 猫 GIF - 使用 Glide（性能更好，内存占用低）
+        ImageView ivMaxwell = findViewById(R.id.iv_maxwell);
 
-        // 启用硬件加速和优化设置
-        webViewMaxwell.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-        WebSettings webSettings = webViewMaxwell.getSettings();
-        webSettings.setLoadWithOverviewMode(true);
-        webSettings.setUseWideViewPort(true);
-        webSettings.setCacheMode(WebSettings.LOAD_NO_CACHE);
-
-        webViewMaxwell.setWebChromeClient(new WebChromeClient());
-        webViewMaxwell.setWebViewClient(new WebViewClient());
-
-        // 使用 HTML 加载 GIF，背景透明，增大尺寸
-        String gifUrl = "file:///android_res/drawable/maxwell_spinning.gif";
-        
-        // HTML内容：固定大小400px，背景透明，添加阴影效果
-        String html = "<html>" +
-                "<head>" +
-                "<style>" +
-                "body { margin:0;padding:0;background-color:transparent;display:flex;justify-content:center;align-items:center;height:100vh; }" +
-                ".gif-container { " +
-                "  width:400px;" +
-                "  height:400px;" +
-                "  filter:drop-shadow(0 8px 20px rgba(0,0,0,0.5));" +
-                "  -webkit-filter:drop-shadow(0 8px 20px rgba(0,0,0,0.5));" +
-                "}" +
-                ".gif-container img { " +
-                "  width:100%;" +
-                "  height:100%;" +
-                "  object-fit:contain;" +
-                "}" +
-                "</style>" +
-                "</head>" +
-                "<body>" +
-                "<div class=\"gif-container\">" +
-                "<img src=\"" + gifUrl + "\" />" +
-                "</div>" +
-                "</body></html>";
-        webViewMaxwell.setBackgroundColor(android.graphics.Color.TRANSPARENT);
-        webViewMaxwell.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+        // 使用 Glide 加载 GIF，循环播放
+        Glide.with(this)
+                .asGif()
+                .load(R.drawable.maxwell_spinning)
+                .diskCacheStrategy(DiskCacheStrategy.RESOURCE)
+                .into(ivMaxwell);
 
         // 初始化双击检测和单击动画
         mDoubleTapHandler = new Handler(Looper.getMainLooper());
         final boolean[] isDoubleTapped = {false};
-        
+
         mGestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onSingleTapUp(MotionEvent e) {
@@ -135,13 +104,13 @@ public class WelcomeActivity extends BaseActivity {
                 mDoubleTapHandler.postDelayed(() -> {
                     if (!isDoubleTapped[0]) {
                         // 执行单击跳起动画
-                        playJumpAnimation(webViewMaxwell);
+                        playJumpAnimation(ivMaxwell);
                     }
                     isDoubleTapped[0] = false;
                 }, DOUBLE_TAP_TIMEOUT);
                 return true;
             }
-            
+
             @Override
             public boolean onDoubleTap(MotionEvent e) {
                 isDoubleTapped[0] = true;
@@ -151,7 +120,7 @@ public class WelcomeActivity extends BaseActivity {
         });
 
         // 设置触摸监听
-        webViewMaxwell.setOnTouchListener((v, event) -> {
+        ivMaxwell.setOnTouchListener((v, event) -> {
             mGestureDetector.onTouchEvent(event);
             return true;
         });
@@ -358,75 +327,67 @@ public class WelcomeActivity extends BaseActivity {
     }
 
     private void showAgreementDialog() {
-        final AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+        View view = getLayoutInflater().inflate(R.layout.user_agreement, null);
+
+        TextView tvContent = view.findViewById(R.id.tv_content);
+        com.google.android.material.button.MaterialButton tvCancel = view.findViewById(R.id.tv_cancel);
+        com.google.android.material.button.MaterialButton tvAgree = view.findViewById(R.id.tv_agree);
+
+        SpannableStringBuilder ssb = new SpannableStringBuilder();
+        ssb.append(getResources().getString(R.string.app_agreement_content));
+        tvContent.setMovementMethod(LinkMovementMethod.getInstance());
+        tvContent.setText(ssb, TextView.BufferType.SPANNABLE);
+
+        final MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setView(view);
+        builder.setCancelable(false);
+
+        androidx.appcompat.app.AlertDialog alertDialog = builder.create();
         alertDialog.show();
-        alertDialog.setCancelable(false);
-        Window window = alertDialog.getWindow();
-        if (window != null) {
-            window.setContentView(R.layout.user_agreement);
-            window.setGravity(Gravity.CENTER);
-            window.setWindowAnimations(R.style.DialogAnimFadeInFadeOut);
 
-            TextView tvContent = window.findViewById(R.id.tv_content);
-            Button tvCancel = window.findViewById(R.id.tv_cancel);
-            Button tvAgree = window.findViewById(R.id.tv_agree);
-            SpannableStringBuilder ssb = new SpannableStringBuilder();
-            ssb.append(getResources().getString(R.string.app_agreement_content));
-            tvContent.setMovementMethod(LinkMovementMethod.getInstance());
-            tvContent.setText(ssb, TextView.BufferType.SPANNABLE);
+        tvCancel.setOnClickListener(v -> {
+            mAgreement = false;
+            doAcceptation();
+            alertDialog.dismiss();
+        });
 
-            tvCancel.setOnClickListener(v -> {
-                mAgreement = false;
-
-                doAcceptation();
-
-                alertDialog.cancel();
-            });
-
-            tvAgree.setOnClickListener(v -> {
-                mAgreement = true;
-
-                doAcceptation();
-
-                alertDialog.cancel();
-            });
-        }
+        tvAgree.setOnClickListener(v -> {
+            mAgreement = true;
+            doAcceptation();
+            alertDialog.dismiss();
+        });
     }
 
     private void showPrivacyDialog() {
-        final AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+        View view = getLayoutInflater().inflate(R.layout.user_privacy, null);
+
+        TextView tvContent = view.findViewById(R.id.tv_content);
+        com.google.android.material.button.MaterialButton tvCancel = view.findViewById(R.id.tv_cancel);
+        com.google.android.material.button.MaterialButton tvAgree = view.findViewById(R.id.tv_agree);
+
+        SpannableStringBuilder ssb = new SpannableStringBuilder();
+        ssb.append(getResources().getString(R.string.app_privacy_content));
+        tvContent.setMovementMethod(LinkMovementMethod.getInstance());
+        tvContent.setText(ssb, TextView.BufferType.SPANNABLE);
+
+        final MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setView(view);
+        builder.setCancelable(false);
+
+        androidx.appcompat.app.AlertDialog alertDialog = builder.create();
         alertDialog.show();
-        alertDialog.setCancelable(false);
-        Window window = alertDialog.getWindow();
-        if (window != null) {
-            window.setContentView(R.layout.user_privacy);
-            window.setGravity(Gravity.CENTER);
-            window.setWindowAnimations(R.style.DialogAnimFadeInFadeOut);
 
-            TextView tvContent = window.findViewById(R.id.tv_content);
-            Button tvCancel = window.findViewById(R.id.tv_cancel);
-            Button tvAgree = window.findViewById(R.id.tv_agree);
-            SpannableStringBuilder ssb = new SpannableStringBuilder();
-            ssb.append(getResources().getString(R.string.app_privacy_content));
-            tvContent.setMovementMethod(LinkMovementMethod.getInstance());
-            tvContent.setText(ssb, TextView.BufferType.SPANNABLE);
+        tvCancel.setOnClickListener(v -> {
+            mPrivacy = false;
+            doAcceptation();
+            alertDialog.dismiss();
+        });
 
-            tvCancel.setOnClickListener(v -> {
-                mPrivacy = false;
-
-                doAcceptation();
-
-                alertDialog.cancel();
-            });
-
-            tvAgree.setOnClickListener(v -> {
-                mPrivacy = true;
-
-                doAcceptation();
-
-                alertDialog.cancel();
-            });
-        }
+        tvAgree.setOnClickListener(v -> {
+            mPrivacy = true;
+            doAcceptation();
+            alertDialog.dismiss();
+        });
     }
 
     @SuppressLint("ClickableViewAccessibility")

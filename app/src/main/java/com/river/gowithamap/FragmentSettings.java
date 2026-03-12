@@ -31,7 +31,6 @@ import com.elvishew.xlog.XLog;
 import com.river.gowithamap.utils.FileSaveManager;
 import com.river.gowithamap.utils.FileUtils;
 import com.river.gowithamap.utils.GoUtils;
-import com.river.gowithamap.utils.MapCacheManager;
 import com.river.gowithamap.utils.RootUtils;
 import com.river.gowithamap.utils.ThemeUtils;
 
@@ -122,204 +121,11 @@ public class FragmentSettings extends PreferenceFragmentCompat implements Shared
         // 初始化主题模式设置
         setupThemePreference();
 
-        // 初始化地图缓存设置
-        setupMapCachePreference();
-
-        // 初始化地图缓存管理
-        setupMapCacheManagePreference();
-
         // 初始化 ROOT 模式设置
         setupRootModePreference();
         
         // 初始化备份数据设置
         setupBackupDataPreference();
-    }
-
-    /**
-     * 设置地图缓存偏好
-     */
-    private void setupMapCachePreference() {
-        SwitchPreferenceCompat mapCachePreference = findPreference("setting_map_cache");
-        if (mapCachePreference != null) {
-            // 设置当前状态
-            boolean isEnabled = MapCacheManager.isMapCacheEnabled(requireContext());
-            mapCachePreference.setChecked(isEnabled);
-
-            // 监听开关变化
-            mapCachePreference.setOnPreferenceChangeListener((preference, newValue) -> {
-                boolean enabled = (Boolean) newValue;
-                MapCacheManager.setMapCacheEnabled(requireContext(), enabled);
-                
-                String message = enabled ? "地图缓存已启用" : "地图缓存已禁用，重启应用后生效";
-                GoUtils.DisplayToast(requireContext(), message);
-                
-                return true;
-            });
-        }
-    }
-
-    /**
-     * 设置地图缓存管理偏好
-     */
-    private void setupMapCacheManagePreference() {
-        Preference cacheManagePreference = findPreference("setting_map_cache_manage");
-        if (cacheManagePreference != null) {
-            // 更新缓存大小摘要
-            updateCacheSizeSummary(cacheManagePreference);
-
-            // 点击打开缓存管理对话框
-            cacheManagePreference.setOnPreferenceClickListener(preference -> {
-                showCacheManageDialog();
-                return true;
-            });
-        }
-    }
-
-    /**
-     * 更新缓存大小摘要
-     */
-    private void updateCacheSizeSummary(Preference preference) {
-        long cacheSize = MapCacheManager.getMapCacheSize(requireContext());
-        String sizeStr = MapCacheManager.formatCacheSize(cacheSize);
-        preference.setSummary("当前缓存大小: " + sizeStr);
-    }
-
-    /**
-     * 显示缓存管理对话框
-     */
-    private void showCacheManageDialog() {
-        // 获取缓存统计信息
-        String stats = MapCacheManager.getCacheStats(requireContext());
-        List<MapCacheManager.CacheAreaInfo> cachedAreas = MapCacheManager.getCachedAreaList(requireContext());
-
-        // 创建对话框内容视图
-        LinearLayout contentView = new LinearLayout(requireContext());
-        contentView.setOrientation(LinearLayout.VERTICAL);
-        contentView.setPadding(48, 24, 48, 24);
-
-        // 缓存统计信息
-        TextView statsText = new TextView(requireContext());
-        statsText.setText(stats);
-        statsText.setTextSize(14);
-        statsText.setLineSpacing(0, 1.3f);
-        contentView.addView(statsText);
-
-        // 说明文字
-        TextView infoText = new TextView(requireContext());
-        infoText.setText("\n提示：地图瓦片缓存由系统管理，清除应用缓存后地图可能需要重新加载。\n");
-        infoText.setTextSize(12);
-        infoText.setAlpha(0.7f);
-        contentView.addView(infoText);
-
-        // 已缓存区域列表
-        if (!cachedAreas.isEmpty()) {
-            TextView areasTitle = new TextView(requireContext());
-            areasTitle.setText("\n最近浏览过的区域：");
-            areasTitle.setTextSize(14);
-            contentView.addView(areasTitle);
-
-            // 只显示前10个，避免列表过长
-            int displayCount = Math.min(cachedAreas.size(), 10);
-            for (int i = 0; i < displayCount; i++) {
-                MapCacheManager.CacheAreaInfo area = cachedAreas.get(i);
-                TextView areaText = new TextView(requireContext());
-                String accessInfo = "访问" + area.accessCount + "次 • " +
-                        MapCacheManager.formatAccessTime(area.lastAccessTime);
-                areaText.setText("• " + area.name + "\n   " + accessInfo);
-                areaText.setTextSize(13);
-                areaText.setPadding(32, 8, 0, 8);
-                areaText.setLineSpacing(0, 1.2f);
-                contentView.addView(areaText);
-            }
-
-            if (cachedAreas.size() > 10) {
-                TextView moreText = new TextView(requireContext());
-                moreText.setText("...还有 " + (cachedAreas.size() - 10) + " 个区域");
-                moreText.setTextSize(12);
-                moreText.setAlpha(0.6f);
-                moreText.setPadding(32, 8, 0, 0);
-                contentView.addView(moreText);
-            }
-        }
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext())
-                .setTitle(R.string.map_cache_title)
-                .setView(contentView)
-                .setPositiveButton(R.string.map_cache_clear, (dialog, which) -> {
-                    showClearCacheConfirmDialog();
-                })
-                .setNegativeButton(android.R.string.cancel, null);
-
-        // 如果有缓存区域，添加"选择清除"选项
-        if (!cachedAreas.isEmpty()) {
-            builder.setNeutralButton("选择清除", (dialog, which) -> {
-                showSelectiveClearDialog(cachedAreas);
-            });
-        }
-
-        builder.show();
-    }
-
-    /**
-     * 显示选择性清除对话框
-     */
-    private void showSelectiveClearDialog(List<MapCacheManager.CacheAreaInfo> cachedAreas) {
-        String[] areasArray = new String[cachedAreas.size()];
-        boolean[] checkedItems = new boolean[cachedAreas.size()];
-
-        for (int i = 0; i < cachedAreas.size(); i++) {
-            MapCacheManager.CacheAreaInfo area = cachedAreas.get(i);
-            areasArray[i] = area.name + " (" + area.accessCount + "次)";
-        }
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        builder.setTitle("选择要清除的区域")
-                .setMultiChoiceItems(areasArray, checkedItems, (dialog, which, isChecked) -> {
-                    checkedItems[which] = isChecked;
-                })
-                .setPositiveButton("清除选中", (dialog, which) -> {
-                    int clearedCount = 0;
-                    for (int i = 0; i < checkedItems.length; i++) {
-                        if (checkedItems[i]) {
-                            MapCacheManager.clearCachedArea(requireContext(), cachedAreas.get(i).name);
-                            clearedCount++;
-                        }
-                    }
-                    if (clearedCount > 0) {
-                        GoUtils.DisplayToast(requireContext(), "已清除 " + clearedCount + " 个区域的记录");
-                        // 更新摘要
-                        Preference preference = findPreference("setting_map_cache_manage");
-                        if (preference != null) {
-                            updateCacheSizeSummary(preference);
-                        }
-                    }
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    /**
-     * 显示清除缓存确认对话框
-     */
-    private void showClearCacheConfirmDialog() {
-        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle(R.string.map_cache_clear)
-                .setMessage(R.string.map_cache_clear_confirm)
-                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                    boolean success = MapCacheManager.clearAllMapCache(requireContext());
-                    if (success) {
-                        GoUtils.DisplayToast(requireContext(), getString(R.string.map_cache_cleared));
-                        // 更新摘要
-                        Preference preference = findPreference("setting_map_cache_manage");
-                        if (preference != null) {
-                            updateCacheSizeSummary(preference);
-                        }
-                    } else {
-                        GoUtils.DisplayToast(requireContext(), getString(R.string.map_cache_clear_failed));
-                    }
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
     }
 
     /**
@@ -1269,7 +1075,6 @@ public class FragmentSettings extends PreferenceFragmentCompat implements Shared
         prefs.put("lon_offset", sharedPrefs.getString("setting_lon_max_offset", "0.0001"));
         prefs.put("log_enabled", sharedPrefs.getBoolean("setting_log_off", false));
         prefs.put("history_expiration", sharedPrefs.getString("setting_history_expiration", "30"));
-        prefs.put("map_cache", sharedPrefs.getBoolean("setting_map_cache", true));
         prefs.put("theme_mode", sharedPrefs.getString("setting_theme_mode", "system"));
         prefs.put("use_root_mode", sharedPrefs.getBoolean("use_root_mode", false));
         
@@ -1292,7 +1097,6 @@ public class FragmentSettings extends PreferenceFragmentCompat implements Shared
         if (prefs.has("lon_offset")) editor.putString("setting_lon_max_offset", prefs.getString("lon_offset"));
         if (prefs.has("log_enabled")) editor.putBoolean("setting_log_off", prefs.getBoolean("log_enabled"));
         if (prefs.has("history_expiration")) editor.putString("setting_history_expiration", prefs.getString("history_expiration"));
-        if (prefs.has("map_cache")) editor.putBoolean("setting_map_cache", prefs.getBoolean("map_cache"));
         if (prefs.has("theme_mode")) editor.putString("setting_theme_mode", prefs.getString("theme_mode"));
         if (prefs.has("use_root_mode")) editor.putBoolean("use_root_mode", prefs.getBoolean("use_root_mode"));
         

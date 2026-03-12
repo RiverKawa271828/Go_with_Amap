@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="10dp"
+    android:layout_margin="@dimen/spacing_xl"
     android:orientation="vertical">
 
     <TextView
@@ -12,10 +13,9 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:text="@string/update_title"
-        android:textColor="#282828"
-        android:layout_marginBottom="10dp"
-        android:textSize="20sp"
-        android:textStyle="bold" />
+        android:textAppearance="?attr/textAppearanceHeadlineSmall"
+        android:textColor="@color/md_onSurface"
+        android:layout_marginBottom="@dimen/spacing_md" />
 
     <GridLayout
         android:layout_width="match_parent"
@@ -30,7 +30,7 @@
             android:layout_height="wrap_content"
             android:singleLine="true"
             android:textStyle="bold"
-            android:textSize="16sp"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
             android:text="@string/update_time" />
         <TextView
             android:layout_row="0"
@@ -38,7 +38,7 @@
             android:id="@+id/update_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="16sp"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
             android:text="" />
         <TextView
             android:layout_row="1"
@@ -46,7 +46,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textStyle="bold"
-            android:textSize="16sp"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
             android:text="@string/update_commit" />
         <TextView
             android:layout_row="1"
@@ -55,27 +55,34 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:singleLine="true"
-            android:textSize="16sp"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
             android:text="" />
     </GridLayout>
 
-    <ScrollView
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp"
-        android:background="@drawable/border_gray"
-        android:layout_height="350dp">
+        android:layout_height="350dp"
+        android:layout_marginTop="@dimen/spacing_md"
+        android:layout_marginBottom="@dimen/spacing_md"
+        app:cardCornerRadius="@dimen/radius_md"
+        app:cardElevation="0dp"
+        app:strokeColor="@color/md_outlineVariant"
+        app:strokeWidth="1dp">
 
-        <TextView
-            android:id="@+id/update_content"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="10dp"
-            android:layout_marginRight="10dp"
-            android:lineSpacingMultiplier="1.2"
-            android:textColor="#282828"
-            android:textSize="15sp" />
-    </ScrollView>
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:id="@+id/update_content"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/spacing_md"
+                android:lineSpacingMultiplier="1.2"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textColor="@color/md_onSurface" />
+        </ScrollView>
+    </com.google.android.material.card.MaterialCardView>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -83,20 +90,22 @@
         android:gravity="center_horizontal"
         android:orientation="horizontal">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/update_ignore"
             android:layout_width="100dp"
             android:layout_height="wrap_content"
-            android:text="@string/update_ignore"/>
+            android:text="@string/update_ignore"
+            style="@style/AppTheme.Button.Outlined" />
 
         <Space
             android:layout_width="60dp"
             android:layout_height="match_parent"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/update_agree"
             android:layout_width="100dp"
             android:layout_height="wrap_content"
-            android:text="@string/update_download"/>
+            android:text="@string/update_download"
+            style="@style/AppTheme.Button" />
     </LinearLayout>
 </LinearLayout>

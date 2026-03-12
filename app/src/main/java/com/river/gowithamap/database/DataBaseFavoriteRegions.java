@@ -167,14 +167,6 @@ public class DataBaseFavoriteRegions extends SQLiteOpenHelper {
     }
 
     /**
-     * 删除所有区域收藏（clearAllFavoriteRegions的别名）
-     * @param sqLiteDatabase 数据库
-     */
-    public static void deleteAllFavoriteRegions(SQLiteDatabase sqLiteDatabase) {
-        clearAllFavoriteRegions(sqLiteDatabase);
-    }
-
-    /**
      * 更新区域收藏名称
      * @param sqLiteDatabase 数据库
      * @param id 区域ID

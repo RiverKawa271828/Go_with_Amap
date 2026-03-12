@@ -294,7 +294,18 @@ GPL-3.0-only
 
 ## Changelog
 
-### v0.1.2 (Current)
+### v2.20.1 (Current)
+- Removed ineffective map cache feature
+- Optimized search dialog style
+- Added disclaimer to scrolling tips
+- InfoWindow now uses semi-transparent background
+
+### v2.20.0
+- Optimized InfoWindow to display both GCJ02 and WGS84 coordinates
+- Fixed crash in simulation records dialog
+- Enhanced import/export functionality
+
+### v0.1.2
 - Changed Map SDK: Baidu Map → Amap
 - Added multi-point positioning feature
 - Added favorites feature

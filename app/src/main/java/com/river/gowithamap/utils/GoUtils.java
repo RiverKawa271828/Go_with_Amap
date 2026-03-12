@@ -20,6 +20,7 @@ import android.provider.Settings;
 import android.view.Gravity;
 import android.widget.Toast;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import androidx.appcompat.app.AlertDialog;
 
 import java.text.SimpleDateFormat;
@@ -29,6 +30,8 @@ import java.util.Locale;
 
 import android.view.WindowManager;
 import android.graphics.Point;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 
 public class GoUtils {
 
@@ -38,16 +41,43 @@ public class GoUtils {
      */
     public static void setDialogWidth(AlertDialog dialog) {
         if (dialog == null || dialog.getWindow() == null) return;
-        
+
         WindowManager windowManager = (WindowManager) dialog.getContext().getSystemService(Context.WINDOW_SERVICE);
         if (windowManager == null) return;
-        
+
         Point size = new Point();
         windowManager.getDefaultDisplay().getSize(size);
         int screenWidth = size.x;
-        
+
         dialog.getWindow().setLayout((int) (screenWidth * 0.85), WindowManager.LayoutParams.WRAP_CONTENT);
     }
+
+    /**
+     * 动画加载结果类
+     */
+    public static class AnimationPair {
+        public final Animation fadeIn;
+        public final Animation fadeOut;
+
+        public AnimationPair(Animation fadeIn, Animation fadeOut) {
+            this.fadeIn = fadeIn;
+            this.fadeOut = fadeOut;
+        }
+    }
+
+    /**
+     * 加载切换动画（淡入淡出）
+     * @param context 上下文
+     * @param fadeInResId 淡入动画资源ID
+     * @param fadeOutResId 淡出动画资源ID
+     * @return 包含淡入和淡出动画的动画对
+     */
+    public static AnimationPair loadSwitchAnimations(Context context, int fadeInResId, int fadeOutResId) {
+        Animation fadeIn = AnimationUtils.loadAnimation(context, fadeInResId);
+        Animation fadeOut = AnimationUtils.loadAnimation(context, fadeOutResId);
+        return new AnimationPair(fadeIn, fadeOut);
+    }
+
     public static boolean isDeveloperOptionsEnabled(Context context) {
         return Settings.Global.getInt(
                 context.getContentResolver(),
@@ -204,7 +234,7 @@ public class GoUtils {
 
     //提醒开启位置模拟的弹框
     public static  void showEnableMockLocationDialog(Context context) {
-        new AlertDialog.Builder(context)
+        new MaterialAlertDialogBuilder(context)
                 .setTitle("启用位置模拟")//这里是表头的内容
                 .setMessage("请在\"开发者选项→选择模拟位置信息应用\"中进行设置")//这里是中间显示的具体信息
                 .setPositiveButton("设置",(dialog, which) -> {
@@ -223,7 +253,7 @@ public class GoUtils {
 
     //提醒开启悬浮窗的弹框
     public static  void showEnableFloatWindowDialog(Context context) {
-        new AlertDialog.Builder(context)
+        new MaterialAlertDialogBuilder(context)
                 .setTitle("启用悬浮窗")//这里是表头的内容
                 .setMessage("为了模拟定位的稳定性，建议开启\"显示悬浮窗\"选项")//这里是中间显示的具体信息
                 .setPositiveButton("设置",(dialog, which) -> {
@@ -243,7 +273,7 @@ public class GoUtils {
 
     //显示开启GPS的提示
     public static  void showEnableGpsDialog(Context context) {
-        new AlertDialog.Builder(context)
+        new MaterialAlertDialogBuilder(context)
                 .setTitle("启用定位服务")//这里是表头的内容
                 .setMessage("是否开启 GPS 定位服务?")//这里是中间显示的具体信息
                 .setPositiveButton("确定",(dialog, which) -> {
@@ -262,7 +292,7 @@ public class GoUtils {
 
     // 提醒开启位置模拟的弹框
     public static  void showDisableWifiDialog(Context context) {
-        new AlertDialog.Builder(context)
+        new MaterialAlertDialogBuilder(context)
                 .setTitle("警告")
                 .setMessage("开启 WIFI 后（即使没有连接热点）将导致定位闪回真实位置。建议关闭 WIFI，使用移动流量进行游戏！")
                 .setPositiveButton("去关闭",(dialog, which) -> {

@@ -205,7 +205,8 @@
     </style>
     
     <!-- 工具栏标题 -->
-    <style name="TextAppearance.ToolbarTitle" parent="TextAppearance.TitleLarge">
+    <style name="TextAppearance.ToolbarTitle" parent="TextAppearance.TitleMedium">
+        <item name="android:textSize">16sp</item>
         <item name="android:textColor">@color/md_onSurface</item>
     </style>
     

@@ -2,176 +2,149 @@
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
+    android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    app:cardCornerRadius="@dimen/radius_lg"
-    app:cardElevation="@dimen/elevation_high"
-    app:cardBackgroundColor="@color/backgroundCard">
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="#F2FFFFFF">
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="@dimen/spacing_md">
+        android:padding="12dp">
 
-        <!-- 标题栏 -->
+        <!-- 标题栏 - 居中 -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="top">
+            android:gravity="center">
 
             <!-- 模拟状态指示点 -->
             <View
                 android:id="@+id/iv_simulation_status"
-                android:layout_width="8dp"
-                android:layout_height="8dp"
-                android:layout_marginTop="4dp"
-                android:layout_marginEnd="@dimen/spacing_sm"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginTop="3dp"
+                android:layout_marginEnd="6dp"
                 android:background="@drawable/circle_shape_normal"
                 android:visibility="gone" />
 
-            <!-- 位置名称 - 允许多行 -->
+            <!-- 位置名称 - 支持换行，点击复制 -->
             <TextView
                 android:id="@+id/tv_location_name"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="@dimen/text_subtitle"
+                android:textSize="11sp"
                 android:textColor="@color/textPrimary"
                 android:fontFamily="sans-serif-medium"
+                android:lineSpacingMultiplier="1.05"
+                android:gravity="center"
+                android:maxLines="2"
                 android:ellipsize="end"
-                android:maxLines="3"
-                android:lineSpacingMultiplier="1.1"
-                android:text="位置名称" />
+                android:text="位置名称"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true" />
 
             <!-- 已收藏图标 -->
             <ImageView
                 android:id="@+id/iv_favorite_status"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_marginStart="@dimen/spacing_sm"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginStart="6dp"
                 android:src="@drawable/ic_favorite"
                 android:visibility="gone"
                 app:tint="@color/md_tertiary" />
         </LinearLayout>
 
-        <!-- 地址 -->
-        <TextView
-            android:id="@+id/tv_address"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/spacing_xs"
-            android:textSize="@dimen/text_body_small"
-            android:textColor="@color/textSecondary"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:text="详细地址信息" />
-
         <!-- 分隔线 -->
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginVertical="@dimen/spacing_sm"
+            android:layout_marginVertical="8dp"
             android:background="@color/md_outlineVariant" />
 
-        <!-- 坐标信息 -->
+        <!-- 坐标信息 - 居中 -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:gravity="center">
 
-            <!-- GCJ02坐标 -->
+            <!-- GCJ02坐标 - 点击复制 -->
             <TextView
                 android:id="@+id/tv_gcj02"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="11sp"
                 android:textColor="@color/textTertiary"
                 android:fontFamily="monospace"
-                android:text="GCJ02: 116.123456, 39.123456" />
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:text="GCJ: 116.123456,39.123456"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="4dp" />
 
-            <!-- WGS84坐标 -->
+            <!-- WGS84坐标 - 点击复制 -->
             <TextView
                 android:id="@+id/tv_wgs84"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_xs"
+                android:layout_marginTop="2dp"
                 android:textSize="11sp"
                 android:textColor="@color/textTertiary"
                 android:fontFamily="monospace"
-                android:text="WGS84: 116.123456, 39.123456" />
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:text="WGS: 116.123456,39.123456"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="4dp" />
 
             <!-- 区域信息 - 仅区域显示 -->
             <LinearLayout
                 android:id="@+id/layout_region_info"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_xs"
-                android:orientation="vertical"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal"
                 android:visibility="gone">
 
                 <TextView
                     android:id="@+id/tv_center_point"
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="11sp"
                     android:textColor="@color/textTertiary"
                     android:fontFamily="monospace"
-                    android:text="中心: 116.123, 39.123" />
+                    android:singleLine="true"
+                    android:text="中心: 116.123,39.123" />
 
                 <TextView
                     android:id="@+id/tv_radius"
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
+                    android:layout_marginStart="8dp"
                     android:textSize="11sp"
                     android:textColor="@color/colorAccent"
                     android:text="半径: 100m" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 操作按钮栏 -->
-        <LinearLayout
+        <!-- 提示文字 -->
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/spacing_md"
-            android:orientation="horizontal"
-            android:gravity="center">
-
-            <!-- 复制坐标 - 纯图标按钮 -->
-            <ImageButton
-                android:id="@+id/btn_copy"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginEnd="@dimen/spacing_md"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_copy"
-                android:scaleType="centerInside"
-                app:tint="@color/colorPrimary" />
-
-            <!-- 收藏 - 纯图标按钮 -->
-            <ImageButton
-                android:id="@+id/btn_favorite"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginHorizontal="@dimen/spacing_md"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_favorite"
-                android:scaleType="centerInside"
-                app:tint="@color/md_tertiary" />
-
-            <!-- 模拟 - 纯图标按钮 -->
-            <ImageButton
-                android:id="@+id/btn_simulate"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="@dimen/spacing_md"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_fly"
-                android:scaleType="centerInside"
-                app:tint="@color/colorAccent" />
-        </LinearLayout>
+            android:layout_marginTop="8dp"
+            android:text="点击坐标复制"
+            android:textSize="9sp"
+            android:textColor="@color/textTertiary"
+            android:gravity="center" />
 
     </LinearLayout>
 

@@ -106,24 +106,6 @@
     </PreferenceCategory>
 
     <PreferenceCategory
-        app:title="@string/setting_group_map"
-        app:iconSpaceReserved="false">
-
-        <SwitchPreferenceCompat
-            app:key="setting_map_cache"
-            app:title="@string/setting_map_cache"
-            app:summary="@string/setting_map_cache_summary"
-            app:defaultValue="true"
-            app:iconSpaceReserved="false"/>
-
-        <Preference
-            app:key="setting_map_cache_manage"
-            app:title="@string/setting_map_cache_manage"
-            app:summary="@string/setting_map_cache_manage_summary"
-            app:iconSpaceReserved="false"/>
-    </PreferenceCategory>
-
-    <PreferenceCategory
         app:title="@string/setting_group_appearance"
         app:iconSpaceReserved="false">
 

@@ -13,15 +13,68 @@
         <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorSurface">
+            android:background="?attr/colorPrimary">
 
-            <androidx.appcompat.widget.Toolbar
-                android:id="@+id/toolbar"
+            <!-- 标题栏 - 使用自定义布局实现居中 -->
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                android:background="?attr/colorPrimary"
-                app:titleTextColor="?attr/colorOnPrimary"
-                app:popupTheme="@style/AppTheme.PopupOverlay" />
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageButton
+                    android:id="@+id/btn_menu"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_menu"
+                    android:contentDescription="菜单"
+                    app:tint="?attr/colorOnPrimary" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="@string/app_name"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorOnPrimary" />
+
+                <ImageButton
+                    android:id="@+id/btn_search"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_search"
+                    android:contentDescription="搜索"
+                    app:tint="?attr/colorOnPrimary" />
+
+            </LinearLayout>
+
+            <!-- 滚动安全提示 - 使用半透明背景 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="26dp"
+                android:background="#20FFFFFF"
+                android:gravity="center">
+
+                <TextView
+                    android:id="@+id/tv_safety_tips"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="道路千万条，安全第一条。行车不规范，亲人两行泪。仅供学习使用，否则后果自负！"
+                    android:textSize="11sp"
+                    android:textColor="?attr/colorOnPrimary"
+                    android:ellipsize="marquee"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:singleLine="true"
+                    android:scrollHorizontally="true" />
+
+            </LinearLayout>
 
         </com.google.android.material.appbar.AppBarLayout>
 
@@ -29,7 +82,7 @@
             layout="@layout/main_map"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="?attr/actionBarSize" />
+            android:layout_marginTop="74dp" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/faBtnStart"
@@ -49,7 +102,7 @@
             android:layout_height="wrap_content"
             android:background="?attr/colorSurface"
             android:visibility="gone"
-            android:layout_marginTop="?attr/actionBarSize">
+            android:layout_marginTop="74dp">
             <ListView
                 android:id="@+id/search_list_view"
                 android:layout_width="match_parent"
@@ -64,7 +117,7 @@
             android:layout_height="wrap_content"
             android:background="?attr/colorSurface"
             android:visibility="gone"
-            android:layout_marginTop="?attr/actionBarSize">
+            android:layout_marginTop="74dp">
             <ListView
                 android:id="@+id/search_history_list_view"
                 android:layout_width="match_parent"

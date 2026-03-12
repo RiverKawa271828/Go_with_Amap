@@ -92,19 +92,6 @@
     <string name="setting_log_off">关闭日志</string>
     <string name="setting_history_expiration">历史记录有效期(天)</string>
     
-    <!-- 地图相关参数 -->
-    <string name="setting_group_map">地图</string>
-    <string name="setting_map_cache">地图缓存</string>
-    <string name="setting_map_cache_summary">启用后地图数据将缓存到本地，减少网络加载</string>
-    <string name="setting_map_cache_manage">缓存管理</string>
-    <string name="setting_map_cache_manage_summary">查看缓存大小并清理缓存文件</string>
-    <string name="map_cache_title">地图缓存管理</string>
-    <string name="map_cache_current_size">当前缓存大小</string>
-    <string name="map_cache_clear">清除缓存</string>
-    <string name="map_cache_clear_confirm">确定要清除所有地图缓存吗？清除后需要重新联网加载地图。</string>
-    <string name="map_cache_cleared">缓存已清除</string>
-    <string name="map_cache_clear_failed">清除缓存失败</string>
-    
     <!-- 外观相关参数 -->
     <string name="setting_group_appearance">外观</string>
     <string name="setting_theme_mode">主题模式</string>

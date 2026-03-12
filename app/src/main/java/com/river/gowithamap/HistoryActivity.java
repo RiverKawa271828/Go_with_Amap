@@ -48,8 +48,6 @@ import android.view.Gravity;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-
-import com.river.gowithamap.utils.MapCacheManager;
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.Locale;
@@ -345,11 +343,6 @@ public class HistoryActivity extends BaseActivity {
             String[] latLngStr = gcj02LatLng.split(" ");
             gcj02Longitude = latLngStr[0].substring(latLngStr[0].indexOf(':') + 1);
             gcj02Latitude = latLngStr[1].substring(latLngStr[1].indexOf(':') + 1);
-
-            // 记录缓存区域（使用位置名称）
-            if (name != null && !name.isEmpty()) {
-                MapCacheManager.addCachedArea(this, name);
-            }
 
             // Random offset
             if(sharedPreferences.getBoolean("setting_random_offset", false)) {
